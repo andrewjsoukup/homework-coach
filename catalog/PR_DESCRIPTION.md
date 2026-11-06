@@ -93,7 +93,7 @@ All generated from the fictional demo (`demo/run_demo.py`):
 - Child packet: `docs/screenshots/02-child-packet-nova.png`
 - Parent key with I/S/N boxes: `docs/screenshots/03-parent-key.png`
 - Packet two days later, adapted from feedback: `docs/screenshots/05-adapted-packet-nova-wed.png`
-- Desktop panel: not included; the live Desktop smoke check is pending approval.
+- Desktop panel: not included yet; the live Desktop smoke check is still in progress.
 
 ## Checklist
 
