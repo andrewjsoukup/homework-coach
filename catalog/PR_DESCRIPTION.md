@@ -1,6 +1,6 @@
 # plugin-catalog: add homework-coach (community, tools)
 
-Adds `plugin-catalog/homework-coach.yaml`, pinned to `acd3d0e3c8b47ea7dd1b855041ce675fca5a5308` of
+Adds `plugin-catalog/homework-coach.yaml`, pinned to `b0c5663a438e23a36fa4c117d1489c06bb755eb4` of
 https://github.com/andrewjsoukup/homework-coach (I own and maintain the repo).
 
 ## What it does
@@ -68,7 +68,7 @@ commit in a fresh Ubuntu GitHub Actions runner. Hermes was checked out at
 validator runtime and throwaway `HERMES_HOME`. The run installed the declared
 `reportlab` and `pypdf` dependencies; it did not touch a live Hermes installation.
 
-Evidence: https://github.com/andrewjsoukup/homework-coach/actions/runs/42140161188
+Evidence: https://github.com/andrewjsoukup/homework-coach/actions/runs/42141369073
 
 All admission checks passed, including capability registration, built-in tool
 collisions, the security scan (`safe`), no core override, and the Desktop SDK
@@ -79,7 +79,7 @@ Also verified against this publication snapshot:
 - Desktop React SSR tests: **4/4 passed**.
 - `scripts/validate_plugin_catalog.py catalog/homework-coach.yaml`: **OK** with the
   real 40-character pin.
-- Banner and all four catalog screenshots: HTTP 200 at the pinned URLs; SHA-256
+- Banner and all five catalog screenshots: HTTP 200 at the pinned URLs; SHA-256
   hashes match the local files.
 
 A separate live Desktop smoke with the same plugin code and fictional fixture data
@@ -104,6 +104,8 @@ exclude the sidebar and unrelated account information:
 - Live Desktop panel with fictional Nova and Pip (sidebar cropped for privacy):
   `docs/screenshots/06-desktop-panel.png`. The data was seeded with fixture photo analysis;
   the live upload restriction above is not hidden or represented as a successful intake.
+
+![Live Desktop panel with fictional Nova and Pip](https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/06-desktop-panel.png)
 
 ## Checklist
 
