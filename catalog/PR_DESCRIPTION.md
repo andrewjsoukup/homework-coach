@@ -1,6 +1,6 @@
 # plugin-catalog: add homework-coach (community, tools)
 
-Adds `plugin-catalog/homework-coach.yaml`, pinned to `56940ee0135a3828bf00380935c99ea18a9d537d` of
+Adds `plugin-catalog/homework-coach.yaml`, pinned to `acd3d0e3c8b47ea7dd1b855041ce675fca5a5308` of
 https://github.com/andrewjsoukup/homework-coach (I own and maintain the repo).
 
 ## What it does
@@ -68,7 +68,7 @@ commit in a fresh Ubuntu GitHub Actions runner. Hermes was checked out at
 validator runtime and throwaway `HERMES_HOME`. The run installed the declared
 `reportlab` and `pypdf` dependencies; it did not touch a live Hermes installation.
 
-Evidence: https://github.com/andrewjsoukup/homework-coach/actions/runs/42139214640
+Evidence: https://github.com/andrewjsoukup/homework-coach/actions/runs/42140161188
 
 All admission checks passed, including capability registration, built-in tool
 collisions, the security scan (`safe`), no core override, and the Desktop SDK
