@@ -124,6 +124,17 @@ Plugins**, and the backend routes only load when `homework-coach` is in
 `plugins.enabled`. The panel uses only the Desktop plugin SDK (no app internals, no
 `window.hermesDesktop`).
 
+![Live Homework Coach Desktop panel with fictional Nova and Pip](docs/screenshots/06-desktop-panel.png)
+
+This is a crop of the real Desktop app using fictional fixture data, not a mockup.
+The live smoke check covered navigation, child cards, packet listing, native PDF save,
+folder reveal, and I/S/N feedback with refreshed progress.
+
+**Desktop limitation on Hermes v0.22.7:** photo uploads to OAuth-gated remote gateways
+are rejected by the Desktop host before the plugin receives them. Successful live
+photo intake through that connection remains unverified; the screenshot does not
+claim otherwise.
+
 ## What this plugin does with your data (disclosure)
 
 - **Model provider:** homework photos and text go to your **configured Hermes model

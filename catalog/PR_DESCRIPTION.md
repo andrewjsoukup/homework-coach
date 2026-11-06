@@ -82,18 +82,28 @@ Also verified against this publication snapshot:
 - Banner and all four catalog screenshots: HTTP 200 at the pinned URLs; SHA-256
   hashes match the local files.
 
-The live Desktop smoke test and real scheduled-chat delivery remain unverified;
-this PR does not claim those checks have run.
+A separate live Desktop smoke with the same plugin code and fictional fixture data
+verified navigation, child cards, packet listing, native PDF save, folder reveal,
+and mixed I/S/N feedback with refreshed progress. Its captured panel is included below.
+
+**Known host limitation:** Hermes Desktop v0.22.7 rejects photo uploads to OAuth-gated
+remote gateways before the plugin receives a request. Successful live photo intake
+through that connection remains unverified. This is disclosed in the README and
+the catalog entry's `known_issues`. Real scheduled-chat delivery is also unverified.
 
 ## Screenshots
 
-All generated from the fictional demo (`demo/run_demo.py`):
+The worksheet screenshots were generated from the fictional demo (`demo/run_demo.py`).
+The Desktop screenshot is a real app capture with seeded fictional data, cropped to
+exclude the sidebar and unrelated account information:
 
 - Homework photo (input): `docs/screenshots/01-homework-photo.png`
 - Child packet: `docs/screenshots/02-child-packet-nova.png`
 - Parent key with I/S/N boxes: `docs/screenshots/03-parent-key.png`
 - Packet two days later, adapted from feedback: `docs/screenshots/05-adapted-packet-nova-wed.png`
-- Desktop panel: not included yet; the live Desktop smoke check is still in progress.
+- Live Desktop panel with fictional Nova and Pip (sidebar cropped for privacy):
+  `docs/screenshots/06-desktop-panel.png`. The data was seeded with fixture photo analysis;
+  the live upload restriction above is not hidden or represented as a successful intake.
 
 ## Checklist
 

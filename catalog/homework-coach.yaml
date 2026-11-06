@@ -22,6 +22,8 @@ screenshots:
   - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/acd3d0e3c8b47ea7dd1b855041ce675fca5a5308/docs/screenshots/05-adapted-packet-nova-wed.png
 readme: true
 platforms: []
+known_issues:
+  - 'Hermes Desktop v0.22.7 rejects photo uploads to OAuth-gated remote gateways before plugin intake.'
 capabilities:
   provides_tools:
     - homework_coach_intake
