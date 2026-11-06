@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-14",
+  "child_id": "pip",
+  "source": "pip_2026-09-14_counting.png",
+  "items": [
+    {
+      "prompt": "1. Count the apples and write the number",
+      "child_answer": "5",
+      "status": "correct",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "5",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "2. Count the stars and write the number",
+      "child_answer": "7",
+      "status": "correct",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "7",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "3. Count the balls and write the number",
+      "child_answer": "3",
+      "status": "correct",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "3",
+      "confidence": 1.0,
+      "note": "Numeral 3 written backwards (reversal is common in K); count is right."
+    },
+    {
+      "prompt": "4. Count the fishs and write the number",
+      "child_answer": "8",
+      "status": "incorrect",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "9",
+      "confidence": 1.0,
+      "note": "Wrote 8 for 9 fish; possibly skipped one when pictures are scattered."
+    },
+    {
+      "prompt": "5. Count the hearts and write the number",
+      "child_answer": "6",
+      "status": "correct",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "6",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "6. Count the suns and write the number",
+      "child_answer": "8",
+      "status": "correct",
+      "skill": "count.objects_to_10",
+      "format": "scattered pictures -> write numeral",
+      "expected_answer": "8",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "Trace 1-5",
+      "child_answer": "traced",
+      "status": "not_assigned",
+      "skill": "numeral.write_0_10",
+      "format": "trace numerals",
+      "expected_answer": null,
+      "confidence": 1.0,
+      "note": "Tracing warm-up; not scored."
+    }
+  ],
+  "skills": [
+    "count.objects_to_10"
+  ],
+  "formats": [
+    "scattered pictures -> write numeral"
+  ],
+  "lesson": "Count and Write (to 10)",
+  "notes": "Counts small groups well; miscounted the largest scattered group; one reversed 3.",
+  "schema_version": 1
+}

@@ -1,0 +1,33 @@
+name: homework-coach
+repo: https://github.com/andrewjsoukup/homework-coach
+sha: "0000000000000000000000000000000000000000"       # TODO: full 40-char commit to pin (after push)
+title: Homework Coach
+description: 'Photograph a child''s homework and Homework Coach records the skills, task formats
+  and slips in a per-child learning brief, then builds a fresh, verified daily practice packet:
+  a printable PDF per child plus a separate parent answer key. Parents rate items I/S/N and the
+  next packet adapts one step at a time. Elementary math (31 task formats), with an Automation
+  Blueprint for scheduled delivery to chat and a Desktop panel. Photos go to the user''s
+  configured model provider through ctx.llm; all other data stays in plugin-data.'
+maintainer: andrewjsoukup
+tier: community
+category: tools
+requires_hermes: ">=0.22.5"
+version: "0.1.0"
+docs_url: https://github.com/andrewjsoukup/homework-coach#readme
+image: https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/banner.png
+screenshots:
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/01-homework-photo.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/02-child-packet-nova.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/03-parent-key.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/05-adapted-packet-nova-wed.png
+readme: true
+platforms: []
+capabilities:
+  provides_tools:
+    - homework_coach_intake
+    - homework_coach_generate_packet
+    - homework_coach_record_feedback
+    - homework_coach_status
+  provides_hooks: []
+  provides_middleware: []
+  requires_env: []

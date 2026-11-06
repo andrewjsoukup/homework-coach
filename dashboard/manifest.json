@@ -1,0 +1,10 @@
+{
+  "name": "homework-coach",
+  "label": "Homework Coach",
+  "description": "Backend routes for the Homework Coach Desktop panel (children, skill progress, packets, photo upload, feedback).",
+  "icon": "BookOpen",
+  "version": "0.1.0",
+  "tab": { "path": "/homework-coach", "hidden": true },
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}

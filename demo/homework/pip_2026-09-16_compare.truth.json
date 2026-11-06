@@ -1,0 +1,66 @@
+{
+  "date": "2026-09-16",
+  "child_id": "pip",
+  "source": "pip_2026-09-16_compare.png",
+  "items": [
+    {
+      "prompt": "1. 4 apples vs 6 apples: circle the group with more",
+      "child_answer": "right",
+      "status": "correct",
+      "skill": "compare.more_fewer",
+      "format": "two pictured groups -> circle more",
+      "expected_answer": "right",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "2. 7 stars vs 3 stars: circle the group with more",
+      "child_answer": "left",
+      "status": "correct",
+      "skill": "compare.more_fewer",
+      "format": "two pictured groups -> circle more",
+      "expected_answer": "left",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "3. 5 balls vs 5 balls: circle the group with more",
+      "child_answer": "left",
+      "status": "incorrect",
+      "skill": "compare.more_fewer",
+      "format": "two pictured groups -> circle more",
+      "expected_answer": "same",
+      "confidence": 1.0,
+      "note": "Groups are equal; circled one. Introduce 'same' language."
+    },
+    {
+      "prompt": "4. 2 fishs vs 8 fishs: circle the group with more",
+      "child_answer": "right",
+      "status": "correct",
+      "skill": "compare.more_fewer",
+      "format": "two pictured groups -> circle more",
+      "expected_answer": "right",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "5. 9 hearts vs 6 hearts: circle the group with more",
+      "child_answer": null,
+      "status": "unattempted",
+      "skill": "compare.more_fewer",
+      "format": "two pictured groups -> circle more",
+      "expected_answer": "left",
+      "confidence": 1.0,
+      "note": "Left blank."
+    }
+  ],
+  "skills": [
+    "compare.more_fewer"
+  ],
+  "formats": [
+    "two pictured groups -> circle more"
+  ],
+  "lesson": "More or Fewer?",
+  "notes": "New topic. Compares clearly unequal groups; equal groups not yet understood as 'same'.",
+  "schema_version": 1
+}

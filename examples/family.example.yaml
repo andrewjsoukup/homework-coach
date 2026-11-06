@@ -1,0 +1,23 @@
+# Fictional example family. Copy to <HERMES_HOME>/plugin-data/homework-coach/family.yaml
+# or point the plugin's `family_config` setting at your own file.
+family_id: maple
+timezone: America/Chicago
+schedule:
+  days: [mon, tue, wed, thu, fri, sat]
+  time: "09:00"
+children:
+  - id: nova
+    name: Nova
+    grade: "3"
+    curriculum: "District Grade 3 Math"
+    subjects: [math]
+    minutes_per_day: 15
+  - id: pip
+    name: Pip
+    grade: K
+    curriculum: "Kindergarten number sense"
+    subjects: [math]
+    minutes_per_day: 8
+    schedule:
+      days: [mon, wed, fri]
+      time: "08:30"

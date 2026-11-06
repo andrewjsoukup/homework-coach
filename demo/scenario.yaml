@@ -1,0 +1,114 @@
+# Three-day demo progression for the fictional Maple family (demo/family.yaml).
+#
+# Each day: optional homework intake (photo -> observation), generate the day's
+# packet, then the parent's I/S/N feedback that evening.
+#
+# Ratings are keyed by SKILL, not item number, because item numbering belongs to
+# the packet generator. The runner maps them in order onto that day's packet
+# items with the same skill (surplus ratings are dropped).
+#
+# `expect_after_feedback` is the difficulty-engine decision per skill after that
+# evening's feedback (SPEC §7). tests/test_demo_scenario.py replays the feedback
+# through homework_coach.difficulty and asserts these, so the story told in
+# demo/SCENARIO.md cannot drift from the engine.
+#
+# `expect_packet` is guidance the packet generator should satisfy for the demo
+# (checked by the demo test once generation exists): which skills are the
+# classroom target vs review, and formats that must not repeat from homework /
+# the previous packet.
+family: family.yaml
+days:
+  - date: "2026-09-14"
+    label: "Day 1 (Mon): first homework photos"
+    intake:
+      - {child: nova, image: homework/nova_2026-09-14_arrays.png}
+      - {child: pip, image: homework/pip_2026-09-14_counting.png}
+    expect_packet:
+      nova:
+        target: [mult.arrays_equal_groups]
+        review: [mult.repeated_addition]
+        avoid_formats: ["array -> rows/cols/total"]   # fresh analogue, not a copy of the worksheet
+      pip:
+        target: [count.objects_to_10]
+        review: [numeral.write_0_10]
+        avoid_formats: ["scattered pictures -> write numeral"]
+    feedback:
+      nova:
+        ratings: {mult.arrays_equal_groups: [I, I, I], mult.repeated_addition: [I, S]}
+        note: "Breezed through arrays. Needed a nudge on the second addition."
+      pip:
+        ratings: {count.objects_to_10: [I, S, N], numeral.write_0_10: [I, I]}
+        note: "Lost track counting the big group of 9."
+    expect_after_feedback:
+      nova: {mult.arrays_equal_groups: up, mult.repeated_addition: hold}
+      pip: {count.objects_to_10: down, numeral.write_0_10: up}
+    # Dimension levels (scaffold, steps, representation, number_range) after feedback.
+    # Level 1 = most support; raising "scaffold" means fading support.
+    expect_dims:
+      nova: {mult.arrays_equal_groups: [2, 1, 1, 1], mult.repeated_addition: [1, 1, 1, 1]}
+      pip: {count.objects_to_10: [1, 1, 1, 1], numeral.write_0_10: [2, 1, 1, 1]}
+
+  - date: "2026-09-15"
+    label: "Day 2 (Tue): no new homework, packet adapts to feedback"
+    intake: []
+    expect_packet:
+      nova:
+        target: [mult.arrays_equal_groups]
+        review: [mult.repeated_addition]
+        changed_dims: {mult.arrays_equal_groups: scaffold}   # scaffold faded after all-I
+      pip:
+        target: [count.objects_to_10]
+        review: [numeral.write_0_10]
+        changed_dims: {numeral.write_0_10: scaffold}          # tracing guides faded after all-I
+        # count.objects_to_10 got "down" but was already at full support (hold-floor):
+        # it keeps maximum scaffold (e.g. ten-frame, smaller groups) rather than moving.
+    feedback:
+      nova:
+        ratings: {mult.arrays_equal_groups: [I, S, I], mult.repeated_addition: [I, I]}
+        note: "Without the dot grid she wanted help once."
+      pip:
+        ratings: {count.objects_to_10: [I, I, I], numeral.write_0_10: [S]}
+        note: "Ten-frame helped a lot."
+    expect_after_feedback:
+      nova: {mult.arrays_equal_groups: hold, mult.repeated_addition: hold}
+      pip: {count.objects_to_10: hold, numeral.write_0_10: hold}
+    expect_dims:
+      nova: {mult.arrays_equal_groups: [2, 1, 1, 1], mult.repeated_addition: [1, 1, 1, 1]}
+      pip: {count.objects_to_10: [1, 1, 1, 1], numeral.write_0_10: [2, 1, 1, 1]}
+
+  - date: "2026-09-16"
+    label: "Day 3 (Wed): new classroom topics"
+    intake:
+      - {child: nova, image: homework/nova_2026-09-16_sharing.png}
+      - {child: pip, image: homework/pip_2026-09-16_compare.png}
+    expect_packet:
+      nova:
+        new_anchor: "Lesson 4-1 Division as Sharing"
+        target: [div.equal_sharing]
+        review: [mult.arrays_equal_groups, mult.repeated_addition]   # prior topic demoted to review
+        same_item_budget: true
+      pip:
+        new_anchor: "More or Fewer?"
+        target: [compare.more_fewer]
+        review: [count.objects_to_10]
+        same_item_budget: true
+    feedback:
+      nova:
+        ratings: {div.equal_sharing: [I, N, S], mult.arrays_equal_groups: [I], mult.repeated_addition: [I]}
+        note: "Subtracted instead of sharing on one."
+      pip:
+        ratings: {compare.more_fewer: [I, N], count.objects_to_10: [I, I]}
+        note: "Didn't know what to do when the groups were the same."
+    expect_after_feedback:
+      # div/compare are new (no dimension raised yet): a "down" lands on the floor and keeps support.
+      nova: {div.equal_sharing: down, mult.arrays_equal_groups: hold, mult.repeated_addition: up}
+      pip: {compare.more_fewer: down, count.objects_to_10: up}
+    expect_dims:
+      nova:
+        div.equal_sharing: [1, 1, 1, 1]
+        mult.arrays_equal_groups: [2, 1, 1, 1]
+        mult.repeated_addition: [2, 1, 1, 1]
+      pip:
+        compare.more_fewer: [1, 1, 1, 1]
+        count.objects_to_10: [2, 1, 1, 1]
+        numeral.write_0_10: [2, 1, 1, 1]

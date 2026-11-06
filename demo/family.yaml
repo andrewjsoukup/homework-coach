@@ -1,0 +1,23 @@
+# Fictional demo family for the Homework Coach demo. Not a real family.
+# Same children as examples/family.example.yaml, but both kids are on the
+# Mon-Sat schedule so the 3-day demo (Mon 2026-09-14 .. Wed 2026-09-16) has a
+# packet for each child every day.
+family_id: maple
+timezone: America/Chicago
+schedule:
+  days: [mon, tue, wed, thu, fri, sat]
+  time: "09:00"
+children:
+  - id: nova
+    name: Nova
+    grade: "3"
+    curriculum: "District Grade 3 Math"
+    subjects: [math]
+    minutes_per_day: 15      # -> 6 items
+  - id: pip
+    name: Pip
+    grade: K
+    curriculum: "Kindergarten number sense"
+    subjects: [math]
+    minutes_per_day: 12      # -> 5 items (K cap is 6)
+    reading_support: true

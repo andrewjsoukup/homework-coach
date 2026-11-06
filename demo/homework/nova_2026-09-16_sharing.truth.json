@@ -1,0 +1,100 @@
+{
+  "date": "2026-09-16",
+  "child_id": "nova",
+  "source": "nova_2026-09-16_sharing.png",
+  "items": [
+    {
+      "prompt": "1. Share 12 counters into 3 equal groups",
+      "child_answer": "drew 3 groups of 4; 4",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "draw groups -> quotient",
+      "expected_answer": "4",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "2. 10 / 2 = ___",
+      "child_answer": "5",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "bare division fact",
+      "expected_answer": "5",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "3. 15 / 3 = ___",
+      "child_answer": "5",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "bare division fact",
+      "expected_answer": "5",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "4. 18 / 3 = ___",
+      "child_answer": "6",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "bare division fact",
+      "expected_answer": "6",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "5. 20 / 4 = ___",
+      "child_answer": "16",
+      "status": "incorrect",
+      "skill": "div.equal_sharing",
+      "format": "bare division fact",
+      "expected_answer": "5",
+      "confidence": 1.0,
+      "note": "Wrote 16 = 20 - 4: subtracted once instead of sharing. Other facts are right."
+    },
+    {
+      "prompt": "6. Write a multiplication fact that helps solve 12 / 3",
+      "child_answer": "3x4=12",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "division -> related multiplication",
+      "expected_answer": "3x4=12",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "7. 16 stickers shared equally by 4 friends",
+      "child_answer": "4",
+      "status": "correct",
+      "skill": "div.equal_sharing",
+      "format": "sharing story -> quotient",
+      "expected_answer": "4",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "8. Show 8 / 2 another way",
+      "child_answer": "8 x 1/2 = 4",
+      "status": "beyond_grade",
+      "skill": "div.equal_sharing",
+      "format": "division -> another way",
+      "expected_answer": "4",
+      "confidence": 1.0,
+      "note": "True (multiplying by one half) but beyond grade 3; not an error."
+    }
+  ],
+  "skills": [
+    "div.equal_sharing"
+  ],
+  "formats": [
+    "bare division fact",
+    "division -> another way",
+    "division -> related multiplication",
+    "draw groups -> quotient",
+    "sharing story -> quotient"
+  ],
+  "lesson": "Lesson 4-1 Division as Sharing",
+  "notes": "New topic. Sharing pictures and facts mostly right; one subtraction-instead-of-division miss.",
+  "schema_version": 1
+}

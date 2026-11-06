@@ -1,0 +1,111 @@
+{
+  "date": "2026-09-14",
+  "child_id": "nova",
+  "source": "nova_2026-09-14_arrays.png",
+  "items": [
+    {
+      "prompt": "1. Array with 3 rows of 4: rows, number in each row, total",
+      "child_answer": "3 rows of 4 = 12",
+      "status": "correct",
+      "skill": "mult.arrays_equal_groups",
+      "format": "array -> rows/cols/total",
+      "expected_answer": "12",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "2. Array with 2 rows of 5: rows, number in each row, total",
+      "child_answer": "2 rows of 5 = 10",
+      "status": "correct",
+      "skill": "mult.arrays_equal_groups",
+      "format": "array -> rows/cols/total",
+      "expected_answer": "10",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "3. Array with 4 rows of 6: rows, number in each row, total",
+      "child_answer": "4 rows of 6 = 26",
+      "status": "slip",
+      "skill": "mult.arrays_equal_groups",
+      "format": "array -> rows/cols/total",
+      "expected_answer": "24",
+      "confidence": 1.0,
+      "note": "4x6 written as 26; the same fact (6x4=24) is correct in item 6, so likely a slip."
+    },
+    {
+      "prompt": "6. Array with 6 rows of 4: rows, number in each row, total",
+      "child_answer": "6 rows of 4 = 24",
+      "status": "correct",
+      "skill": "mult.arrays_equal_groups",
+      "format": "array -> rows/cols/total",
+      "expected_answer": "24",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "4. Draw an array for 3 x 5 and find the total",
+      "child_answer": "drew 3 rows of 5; 15",
+      "status": "correct",
+      "skill": "mult.arrays_equal_groups",
+      "format": "equation -> draw array",
+      "expected_answer": "15",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "5. 5 + 5 = ___ so 2 x 5 = ___",
+      "child_answer": "10; 2x5=10",
+      "status": "correct",
+      "skill": "mult.repeated_addition",
+      "format": "repeated addition -> equation",
+      "expected_answer": "10",
+      "confidence": 1.0,
+      "note": ""
+    },
+    {
+      "prompt": "7. 4 groups of 3: write an addition and a multiplication equation",
+      "child_answer": "3+3+3+3=13; 4x3=12",
+      "status": "checking_target",
+      "skill": "mult.repeated_addition",
+      "format": "equal groups -> addition + equation",
+      "expected_answer": "12",
+      "confidence": 1.0,
+      "note": "Final equation correct but the addition line says 13; good item to re-check sums."
+    },
+    {
+      "prompt": "8. Draw 2 arrays that show 12",
+      "child_answer": null,
+      "status": "not_assigned",
+      "skill": "mult.arrays_equal_groups",
+      "format": "total -> two arrays",
+      "expected_answer": null,
+      "confidence": 1.0,
+      "note": "Teacher crossed out and wrote 'skip'."
+    },
+    {
+      "prompt": "9. Challenge: 7 x 4 = ___",
+      "child_answer": null,
+      "status": "unattempted",
+      "skill": "mult.repeated_addition",
+      "format": "bare fact",
+      "expected_answer": "28",
+      "confidence": 1.0,
+      "note": "Left blank."
+    }
+  ],
+  "skills": [
+    "mult.arrays_equal_groups",
+    "mult.repeated_addition"
+  ],
+  "formats": [
+    "array -> rows/cols/total",
+    "bare fact",
+    "equal groups -> addition + equation",
+    "equation -> draw array",
+    "repeated addition -> equation"
+  ],
+  "lesson": "Lesson 3-2 Arrays and Multiplication",
+  "notes": "Reads arrays reliably; one likely slip (4x6) and one addition line to re-check.",
+  "schema_version": 1
+}

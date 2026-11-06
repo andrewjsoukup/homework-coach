@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hermes-agent.nousresearch.com/plugins/homework-coach/family.schema.json",
+  "title": "Homework Coach family config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["family_id", "timezone", "children"],
+  "properties": {
+    "family_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"},
+    "timezone": {"type": "string", "minLength": 1, "description": "IANA zone, e.g. America/Chicago"},
+    "schedule": {"$ref": "#/$defs/schedule"},
+    "children": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/child"}
+    }
+  },
+  "$defs": {
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["days", "time"],
+      "properties": {
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
+        },
+        "time": {"type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"}
+      }
+    },
+    "child": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "grade", "curriculum", "minutes_per_day"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 40},
+        "grade": {"enum": ["PK", "K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]},
+        "curriculum": {"type": "string", "minLength": 1, "maxLength": 120},
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["math"]},
+          "default": ["math"]
+        },
+        "minutes_per_day": {"type": "integer", "minimum": 5, "maximum": 60},
+        "schedule": {"$ref": "#/$defs/schedule"},
+        "reading_support": {"type": "boolean"}
+      }
+    }
+  }
+}

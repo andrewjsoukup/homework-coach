@@ -1,0 +1,46 @@
+name: homework-coach
+version: 0.1.0
+manifest_version: 2
+api_version: 1
+description: >-
+  Photograph a child's homework; Homework Coach records the skills, task formats and
+  slips into a per-child learning brief and builds a fresh, verified daily practice
+  packet (child PDF + separate parent answer key) that adapts to I/S/N parent feedback.
+author: Andy Soukup
+license: MIT
+homepage: https://github.com/andrewjsoukup/homework-coach
+tags: [family, education, homework, worksheets, pdf]
+requires_hermes: ">=0.22.5"
+
+provides_tools:
+  - homework_coach_intake
+  - homework_coach_generate_packet
+  - homework_coach_record_feedback
+  - homework_coach_status
+provides_hooks: []
+
+# No capabilities, no requires_env, no requires_auth, no oauth: the plugin holds no
+# credentials. Vision/LLM calls go through ctx.llm on the user's active provider.
+capabilities: []
+
+config_schema:
+  family_config:
+    type: str
+    default: ""
+    label: Family config file
+    description: Path to the family YAML (children, grades, curricula, schedule). Empty uses <plugin data>/family.yaml.
+  output_dir:
+    type: str
+    default: ""
+    label: Packet output folder
+    description: Where dated packet folders are written. Empty uses <plugin data>/packets.
+  packet_history_days:
+    type: int
+    default: 3
+    label: Packets compared for variety
+    description: How many previous packets are checked so formats rotate instead of repeating.
+  keep_source_images:
+    type: bool
+    default: true
+    label: Keep homework photos
+    description: Copy analysed homework photos into the plugin data folder for later reference.
