@@ -1,6 +1,6 @@
 name: homework-coach
 repo: https://github.com/andrewjsoukup/homework-coach
-sha: "0000000000000000000000000000000000000000"       # TODO: full 40-char commit to pin (after push)
+sha: "56940ee0135a3828bf00380935c99ea18a9d537d"
 title: Homework Coach
 description: 'Photograph a child''s homework and Homework Coach records the skills, task formats
   and slips in a per-child learning brief, then builds a fresh, verified daily practice packet:
@@ -14,12 +14,12 @@ category: tools
 requires_hermes: ">=0.22.5"
 version: "0.1.0"
 docs_url: https://github.com/andrewjsoukup/homework-coach#readme
-image: https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/banner.png
+image: https://raw.githubusercontent.com/andrewjsoukup/homework-coach/56940ee0135a3828bf00380935c99ea18a9d537d/docs/screenshots/banner.png
 screenshots:
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/01-homework-photo.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/02-child-packet-nova.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/03-parent-key.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/SHA/docs/screenshots/05-adapted-packet-nova-wed.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/56940ee0135a3828bf00380935c99ea18a9d537d/docs/screenshots/01-homework-photo.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/56940ee0135a3828bf00380935c99ea18a9d537d/docs/screenshots/02-child-packet-nova.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/56940ee0135a3828bf00380935c99ea18a9d537d/docs/screenshots/03-parent-key.png
+  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/56940ee0135a3828bf00380935c99ea18a9d537d/docs/screenshots/05-adapted-packet-nova-wed.png
 readme: true
 platforms: []
 capabilities:

@@ -1,6 +1,6 @@
 # plugin-catalog: add homework-coach (community, tools)
 
-Adds `plugin-catalog/homework-coach.yaml`, pinned to `<SHA>` of
+Adds `plugin-catalog/homework-coach.yaml`, pinned to `56940ee0135a3828bf00380935c99ea18a9d537d` of
 https://github.com/andrewjsoukup/homework-coach (I own and maintain the repo).
 
 ## What it does
@@ -62,26 +62,28 @@ No hooks, no middleware, no `requires_env`, no `requires_auth`, no `oauth`.
 
 ## Validation
 
-`hermes plugins validate .` at the pinned commit, on Hermes v0.22.7 (deps reportlab and pypdf
-were already present; catalog CI's `--install-deps` run is the authoritative check):
+`hermes plugins validate <checkout> --install-deps` **passed** on the exact pinned
+commit in a fresh Ubuntu GitHub Actions runner. Hermes was checked out at
+`b200f5bc60e31588ba2cb60e288029c4a54ba5fa` (v0.22.7), with a separate, locked
+validator runtime and throwaway `HERMES_HOME`. The run installed the declared
+`reportlab` and `pypdf` dependencies; it did not touch a live Hermes installation.
 
-```
-✓ manifest / manifest fields / requires_hermes '>=0.22.5' / config schema
-✓ requires_env / oauth — not declared
-✓ loadable — entry: __init__.py, desktop/plugin.js
-✓ python dependencies — 2 requirements from pyproject (reportlab>=4.0,<6; pypdf>=4.0,<7)
-✓ capability probe / declared tools / hooks / middleware
-✓ built-in tool collisions — no collisions
-✓ security scan — safe
-✓ no core override
-✓ desktop surface — stays inside the plugin SDK surface
-◆ Isolation — runs in the plugin host; dashboard backend API served through the plugin host
-Validation passed.
-```
+Evidence: https://github.com/andrewjsoukup/homework-coach/actions/runs/42139214640
 
-Also: `hermes plugins doctor . --ci` OK. pytest: 175 passed, 2 skipped (the skips are panel
-router tests that need fastapi). Node SSR tests for the Desktop page: 4/4.
-`scripts/validate_plugin_catalog.py` passes on the entry.
+All admission checks passed, including capability registration, built-in tool
+collisions, the security scan (`safe`), no core override, and the Desktop SDK
+surface check. The dashboard backend runs through the plugin host.
+
+Also verified against this publication snapshot:
+- pytest: **176 passed, 2 skipped** (optional panel-router tests requiring FastAPI).
+- Desktop React SSR tests: **4/4 passed**.
+- `scripts/validate_plugin_catalog.py catalog/homework-coach.yaml`: **OK** with the
+  real 40-character pin.
+- Banner and all four catalog screenshots: HTTP 200 at the pinned URLs; SHA-256
+  hashes match the local files.
+
+The live Desktop smoke test and real scheduled-chat delivery remain unverified;
+this PR does not claim those checks have run.
 
 ## Screenshots
 
@@ -91,12 +93,12 @@ All generated from the fictional demo (`demo/run_demo.py`):
 - Child packet: `docs/screenshots/02-child-packet-nova.png`
 - Parent key with I/S/N boxes: `docs/screenshots/03-parent-key.png`
 - Packet two days later, adapted from feedback: `docs/screenshots/05-adapted-packet-nova-wed.png`
-- Desktop panel: `<add after live Desktop check>`
+- Desktop panel: not included; the live Desktop smoke check is pending approval.
 
 ## Checklist
 
 - [x] One file, `plugin-catalog/homework-coach.yaml`
-- [ ] `sha` is a full 40-char commit; `version` quoted and matches `plugin.yaml` (0.1.0)
+- [x] `sha` is a full 40-char commit; `version` quoted and matches `plugin.yaml` (0.1.0)
 - [x] `requires_hermes` matches `plugin.yaml` (`>=0.22.5`), SemVer, not newer than current
 - [x] Capabilities match registrations (validate: declared tools/hooks/middleware ✓)
 - [x] No self-updater, no binaries/bytecode, no credential reads, no core overrides
