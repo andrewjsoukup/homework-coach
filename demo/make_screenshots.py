@@ -48,7 +48,7 @@ def main() -> None:
         t = img.copy()
         t.thumbnail((360, 540))
         banner.paste(t, (30 + k * 390 + (360 - t.width) // 2, (h - t.height) // 2))
-    banner.save(OUT / "banner.png", optimize=True)
+    banner.save(OUT / "flow.png", optimize=True)
     print(f"wrote {len(PAGES) + 2} images to {OUT.relative_to(ROOT)}")
 
 

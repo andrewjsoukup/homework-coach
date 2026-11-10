@@ -1,6 +1,6 @@
 [project]
 name = "homework-coach"
-version = "0.2.0"
+version = "0.2.1"
 description = "Hermes plugin: homework photo -> learning brief -> adaptive daily practice packet + parent key"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -9,12 +9,12 @@ dependencies = [
     "pypdf>=4.0,<7",
     "pyyaml>=6,<7",
     "pypdfium2>=4,<6",
-    "pillow>=10,<13",
+    "pillow>=10,<14",
     "tzdata>=2024.1",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "jsonschema>=4.18,<5", "pyyaml>=6,<7", "fastapi>=0.110", "httpx>=0.27", "tzdata>=2024.1", "pypdfium2>=4,<6", "pillow>=10,<13", "ruamel.yaml>=0.18", "croniter>=2"]
+dev = ["pytest>=8,<10", "jsonschema>=4.18,<5", "pyyaml>=6,<7", "fastapi>=0.110", "httpx>=0.27", "tzdata>=2024.1", "pypdfium2>=4,<6", "pillow>=10,<14", "ruamel.yaml>=0.18", "croniter>=2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

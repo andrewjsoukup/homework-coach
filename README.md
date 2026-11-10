@@ -11,10 +11,10 @@ packet: a printable PDF for each child plus a separate parent answer key. Rate e
 **I** (independent), **S** (supported) or **N** (not yet), and the next packet adjusts
 one step at a time.
 
-> Status: **0.2.0**. Elementary math (counting, place value, add/sub, multiplication,
+> Status: **0.2.1**. Elementary math (counting, place value, add/sub, multiplication,
 > division, fractions; 31 task formats). See [SPEC.md](SPEC.md).
 
-![Homework photo in, practice packet and parent key out](docs/screenshots/banner.png)
+![Homework Coach: a tutor and a student working through practice problems](docs/screenshots/banner.png)
 
 **Privacy:** data is stored on the **backend** host (the machine running the Hermes
 gateway/plugin host for the active profile), which may not be the machine you are looking at.

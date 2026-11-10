@@ -38,7 +38,7 @@ One profile has one backend that owns the data. Any number of clients can show t
 | Surface | Status |
 |---|---|
 | Local Desktop + local backend | Supported; native Desktop QA was run on v0.22.7 against the 0.1.x UI |
-| Desktop to remote/cloud backend | Designed for; not live-tested by the maintainer for 0.2.0 |
+| Desktop to remote/cloud backend | Designed for; not live-tested by the maintainer for 0.2.1 |
 | Browser-hosted Desktop renderer | Supported by Hermes core; plugin not live-tested there |
 | Headless chat/CLI | Tools and commands work wherever the channel exposes them |
 | Legacy web dashboard, native phone app | Different surfaces; phone panel not verified |
