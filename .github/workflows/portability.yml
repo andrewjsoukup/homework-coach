@@ -28,10 +28,10 @@ jobs:
       run:
         shell: bash
     env:
-      HERMES_HOME: ${{ runner.temp }}/homework-test-home
-      HERMES_BASE_HOME: ${{ runner.temp }}/homework-test-home
+      HERMES_HOME: ${{ github.workspace }}/../homework-test-home
+      HERMES_BASE_HOME: ${{ github.workspace }}/../homework-test-home
       HERMES_DISABLE_LAZY_INSTALLS: '1'
-      TMPDIR: ${{ runner.temp }}
+      TMPDIR: ${{ github.workspace }}/..
       UV_NO_PROGRESS: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
