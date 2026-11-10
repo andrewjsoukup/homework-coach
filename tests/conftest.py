@@ -20,7 +20,11 @@ class FakeCtx:
         self.skills: dict[str, Path] = {}
         self.blueprints: dict[str, dict[str, Any]] = {}
         self.hooks: list[str] = []
+        self.unload: list[Any] = []
         self.llm = None
+
+    def on_unload(self, callback):
+        self.unload.append(callback)
 
     def get_config(self, key, default=None):
         return self.settings.get(key, default)
@@ -49,6 +53,8 @@ def isolated_data_root(tmp_path: Path, monkeypatch):
     """Never touch a real Hermes home: plugin data root → tmp."""
     root = tmp_path / "plugin-data"
     monkeypatch.setattr("homework_coach.storage.default_root", lambda: root)
+    # register() starts the Daily sheets timer; tests that want a real one start it themselves
+    monkeypatch.setattr("homework_coach.daily.start_timer", lambda *a, **k: None)
     return root
 
 

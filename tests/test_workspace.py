@@ -167,3 +167,67 @@ def test_reading_correction_is_recorded_with_provenance(tmp_path, family_file):
     assert o["items"][0]["corrected"] and o["items"][0]["status"] == "correct"
     with pytest.raises(PanelError):
         ws.fix_reading(rt, "nova", 0, 0, {"status": "great"})
+
+
+def _today_is(rt: Runtime, monkeypatch, day: str) -> None:
+    monkeypatch.setattr(type(rt), "today", lambda self, family: day)
+
+
+def test_today_leads_with_todays_sheet_and_keeps_rating_as_a_second_ask(tmp_path, family_file, monkeypatch):
+    rt = _rt(tmp_path, family_file)
+    _today_is(rt, monkeypatch, "2026-11-03")  # Tuesday: a practice day for Nova
+    card = lambda: next(c for c in ws.today(rt)["children"] if c["id"] == "nova")  # noqa: E731
+    _packet(rt, "2026-11-02")  # yesterday's sheet, never rated
+    c = card()
+    assert (c["status"], c["action"], c["packet_date"]) == ("make_packet", "generate", "2026-11-03")
+    assert c["rate_date"] == "2026-11-02" and c["rate_label"] == "Mon Nov 2"
+    assert ws.today(rt)["to_rate"] == 1  # the status-bar reminder still counts it
+    _packet(rt, "2026-11-03")
+    c = card()
+    assert (c["status"], c["action"], c["packet_date"]) == ("packet_ready", "open", "2026-11-03")
+    assert c["rate_date"] == "2026-11-02"
+    ws.rate(rt, "nova", "2026-11-02", {"1": "I"}, "")
+    c = card()
+    assert c["status"] == "packet_ready" and "rate_date" not in c and ws.today(rt)["to_rate"] == 0
+    ws.rate(rt, "nova", "2026-11-03", {"1": "S"}, "")
+    assert card()["status"] != "needs_rating"
+
+
+def test_today_still_asks_for_ratings_on_a_rest_day(tmp_path, family_file, monkeypatch):
+    rt = _rt(tmp_path, family_file)
+    _today_is(rt, monkeypatch, "2026-11-08")  # Sunday: nobody practises
+    _packet(rt, "2026-11-07")
+    c = next(c for c in ws.today(rt)["children"] if c["id"] == "nova")
+    assert (c["status"], c["action"], c["packet_date"]) == ("needs_rating", "rate", "2026-11-07")
+    assert "rate_date" not in c
+
+
+def test_today_does_not_offer_a_sheet_when_a_fresh_photo_is_needed(tmp_path, family_file, monkeypatch):
+    rt = _rt(tmp_path, family_file)
+    _today_is(rt, monkeypatch, "2026-11-03")
+    c = next(c for c in ws.today(rt)["children"] if c["id"] == "nova")
+    assert c["status"] == "needs_photo"  # unchanged: nothing to follow yet
+
+
+def test_daily_settings_round_trip_and_show_on_today(tmp_path, family_file):
+    rt = _rt(tmp_path, family_file)
+    d = ws.daily_settings(rt)
+    assert d["enabled"] is False and d["writer"] == "builtin" and d["times"] == ["08:30", "09:00"]
+    assert d["timezone"] == "America/Chicago" and d["model_ready"] is False and d["last"] is None
+    out = ws.update_daily(rt, {"enabled": True, "writer": "model", "ignored": 1})
+    assert out["ok"] and out["enabled"] is True and out["writer"] == "model"
+    assert ws.today(rt)["daily"]["enabled"] is True
+    for bad in ({}, {"writer": "robot"}, {"enabled": "on"}):
+        with pytest.raises(PanelError):
+            ws.update_daily(rt, bad)
+
+
+def test_packet_detail_says_when_the_model_chose_the_problems(tmp_path, family_file):
+    rt = _rt(tmp_path, family_file)
+    d = _packet(rt, "2026-11-07")
+    assert ws.packet_detail(rt, "2026-11-07", "nova")["written_by"] == "builtin"  # sheets made before 0.2.3
+    data = json.loads((d / "packet.json").read_text(encoding="utf-8"))
+    data["children"]["nova"].update(written_by="model", writer_note="Arrays, after a slip on 6 x 4.")
+    (d / "packet.json").write_text(json.dumps(data), encoding="utf-8")
+    detail = ws.packet_detail(rt, "2026-11-07", "nova")
+    assert detail["written_by"] == "model" and detail["writer_note"].startswith("Arrays")

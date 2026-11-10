@@ -47,20 +47,31 @@ def num_max(skill: str, grade: str, level: int) -> int:
 class Gen:
     """Context handed to each generator."""
 
-    def __init__(self, rng: random.Random, grade: str, dims: dict[str, int], skill: str):
+    def __init__(self, rng: random.Random, grade: str, dims: dict[str, int], skill: str,
+                 guide: dict | None = None):
         self.rng, self.grade, self.dims, self.skill = rng, grade, dims, skill
         self.nmax = num_max(skill, grade, _lvl(dims, "number_range"))
         self.hint_on = _lvl(dims, "scaffold") <= 2
         self.steps = _lvl(dims, "steps")
+        # Model-written sheets: preferred numbers (in draw order), a name and an object. Each is
+        # used only when it fits what the generator would have drawn anyway.
+        guide = guide or {}
+        self.picks = [n for n in (guide.get("numbers") or []) if isinstance(n, int) and not isinstance(n, bool)]
+        self.who, self.things = str(guide.get("who") or ""), str(guide.get("things") or "")
 
     def r(self, lo: int, hi: int) -> int:
-        return self.rng.randint(lo, max(lo, hi))
+        hi = max(lo, hi)
+        if self.picks:
+            n = self.picks.pop(0)
+            if lo <= n <= hi:
+                return n
+        return self.rng.randint(lo, hi)
 
     def name(self) -> str:
-        return self.rng.choice(NAMES)
+        return self.who or self.rng.choice(NAMES)
 
     def thing(self) -> str:
-        return self.rng.choice(THINGS)
+        return self.things or self.rng.choice(THINGS)
 
     def item(self, fmt: str, prompt: str, answer: str, worked: str, spec: dict, *, display: list[str] | None = None,
              visual: dict | None = None, hint: str = "", work_lines: int = 2) -> PacketItem:

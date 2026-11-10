@@ -39,6 +39,10 @@ class ChildPlan:
     dims: dict[str, dict[str, int]]
     prev_formats: list[str] = field(default_factory=list)
     steer: dict[str, Any] = field(default_factory=dict)
+    written_by: str = "builtin"  # "model" when the parent's model chose the formats and numbers
+    writer_note: str = ""        # the model's one-line reason, shown to the parent only
+    writer_model: str = ""
+    writer_fallback: str = ""    # why a model-written sheet fell back to the built-in writer
 
 
 def _seed(*parts: str) -> int:
@@ -82,10 +86,11 @@ def _dims(states: dict[str, SkillState], skill: str) -> dict[str, int]:
 
 
 def _make(fmt: str, rng: random.Random, grade: str, dims: dict[str, int], skill: str,
-          seen_prompts: set[str]) -> PacketItem:
+          seen_prompts: set[str], guide: dict[str, Any] | None = None) -> PacketItem:
     last_errs: list[str] = []
-    for _ in range(MAX_REGEN):
-        it = GENERATORS[fmt](Gen(rng, grade, dims, skill))
+    for attempt in range(MAX_REGEN):
+        # a model's preferences get one try; if that item does not verify, the built-in draw takes over
+        it = GENERATORS[fmt](Gen(rng, grade, dims, skill, guide if attempt == 0 else None))
         it.id = "tmp"
         last_errs = verify.check_item(it)
         if not last_errs and it.prompt not in seen_prompts:
@@ -94,7 +99,11 @@ def _make(fmt: str, rng: random.Random, grade: str, dims: dict[str, int], skill:
     raise RuntimeError(f"generator {fmt} could not produce a verified item: {last_errs}")
 
 
-def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, history_days: int = 3) -> ChildPlan:
+def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, history_days: int = 3,
+               writer: Any = None) -> ChildPlan:
+    """Plan one child's sheet. ``writer`` (optional) is the model writer: it may choose each slot's
+    format and numbers; the generators still build and check every problem, and any writer failure
+    falls back to the built-in choices."""
     rng = random.Random(_seed(family.family_id, child.id, date))
     states = store.load_skills(child.id)
     anchor = store.load_anchor(child.id) or {}
@@ -121,16 +130,59 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
     t_order = _order_formats(target, child.grade, history, anchor_formats, t_dims["representation"])
     r_order = _order_formats(review, child.grade, history, [], r_dims["representation"])
 
-    seen: set[str] = set()
-    items: list[PacketItem] = []
+    s_dims = dict(t_dims)
+    s_dims["number_range"] = min(5, s_dims["number_range"] + 1)
+    s_dims["steps"] = min(5, s_dims["steps"] + 1)
+    s_dims["scaffold"] = 5
+    stretch_fmt = next((f for f in t_order if "word_problem" in f), t_order[-1])
+
+    # One slot per problem: the built-in choice, plus what a model writer may choose instead.
+    slots: list[dict[str, Any]] = []
     for i in range(n_target):
-        it = _make(t_order[i % len(t_order)], rng, child.grade, t_dims, target, seen)
-        it.role = "target"
-        items.append(it)
+        slots.append({"slot": len(slots) + 1, "role": "target", "skill": target, "dims": t_dims,
+                      "default": t_order[i % len(t_order)], "allowed": list(t_order)})
     for i in range(n_review):
-        it = _make(r_order[i % len(r_order)], rng, child.grade, r_dims, review, seen)
-        it.role = "review"
-        items.append(it)
+        slots.append({"slot": len(slots) + 1, "role": "review", "skill": review, "dims": r_dims,
+                      "default": r_order[i % len(r_order)], "allowed": list(r_order)})
+    slots.append({"slot": len(slots) + 1, "role": "stretch", "skill": target, "dims": s_dims,
+                  "default": stretch_fmt, "allowed": [f for f in t_order if "word_problem" in f] or [stretch_fmt]})
+
+    guide: dict[int, dict[str, Any]] = {}
+    written_by, writer_note, writer_model, writer_fallback = "builtin", "", "", ""
+    if writer is not None:
+        try:
+            out = writer(child=child, date=date, slots=slots, info={"steer": steer, "history": history})
+            guide = dict(out.get("slots") or {})
+            if not guide:
+                raise ValueError("the model returned no choices")
+            written_by, writer_note = "model", str(out.get("note") or "")
+            writer_model = str(out.get("model") or "")
+        except Exception as e:  # no model, timeout, unusable reply: the built-in sheet is always there
+            guide, writer_fallback = {}, f"{type(e).__name__}: {e}"[:200]
+
+    seen: set[str] = set()
+
+    def build(s: dict[str, Any]) -> PacketItem:
+        g = guide.get(s["slot"]) or {}
+        # The model's choice first; if it cannot give a new, verified problem (some formats print the
+        # same instruction every time, so they fit on a sheet once), the built-in choice, then any
+        # other format for this skill.
+        tries: list[tuple[str, dict[str, Any] | None]] = [(g["format"], g)] if g.get("format") else []
+        tries += [(f, None) for f in dict.fromkeys([s["default"], *s["allowed"]])]
+        err: RuntimeError | None = None
+        for fmt, hint in tries:
+            try:
+                it = _make(fmt, rng, child.grade, s["dims"], s["skill"], seen, hint)
+            except RuntimeError as e:
+                err = err or e
+                if writer is None:
+                    break  # built-in sheets behave exactly as before
+                continue
+            it.role = s["role"]
+            return it
+        raise err or RuntimeError("no format could produce a verified item")
+
+    items: list[PacketItem] = [build(s) for s in slots[:-1]]
     # interleave review among target so the page isn't two blocks; deterministic shuffle
     core = items[:]
     rng.shuffle(core)
@@ -140,12 +192,7 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
     for n, it in enumerate(core, start=1):
         it.id = str(n)
 
-    s_dims = dict(t_dims)
-    s_dims["number_range"] = min(5, s_dims["number_range"] + 1)
-    s_dims["steps"] = min(5, s_dims["steps"] + 1)
-    s_dims["scaffold"] = 5
-    stretch_fmt = next((f for f in t_order if "word_problem" in f), t_order[-1])
-    stretch = _make(stretch_fmt, rng, child.grade, s_dims, target, seen)
+    stretch = build(slots[-1])
     stretch.id, stretch.role, stretch.optional = "S1", "stretch", True
     from .tips import tip_for
 
@@ -155,7 +202,8 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
 
     return ChildPlan(child=child, items=core + [stretch], target_skill=target, review_skill=review,
                      dims={target: t_dims, review: r_dims}, prev_formats=history[-1] if history else [],
-                     steer=steer)
+                     steer=steer, written_by=written_by, writer_note=writer_note, writer_model=writer_model,
+                     writer_fallback=writer_fallback)
 
 
 def steering_photo(store: Store, child_id: str, date: str, steer: dict[str, Any]) -> dict[str, Any] | None:
@@ -200,6 +248,9 @@ def progression_md(date: str, plans: list[ChildPlan]) -> str:
             *([f"- Class unit: {p.steer['unit']['title']}"] if p.steer.get("unit") else []),
             *([f"- Unit goals: {'; '.join(p.steer['goals'])}"] if p.steer.get("goals") else []),
             f"- Supporting review: {catalog.SKILLS.get(p.review_skill, p.review_skill)}",
+            *([f"- Problems chosen by: your model{' - ' + p.writer_note if p.writer_note else ''}"]
+              if p.written_by == "model" else []),
+            *([f"- Model writer unavailable, built-in sheet used: {p.writer_fallback}"] if p.writer_fallback else []),
             f"- Core items: {len(fmts)} (budget {p.child.item_budget}) + 1 optional stretch",
             "- Difficulty dims: " + "; ".join(
                 f"{s}: " + ", ".join(f"{k}={v}" for k, v in d.items()) for s, d in p.dims.items()),
@@ -297,6 +348,7 @@ def _selection(pdir: Path, data: dict[str, Any], requested: list[str]) -> dict[s
             "children": {c: data["children"][c]["focus"] for c in kids},
             "steering": {c: {"source": data["children"][c].get("steered_by"),
                              "unit": data["children"][c].get("class_unit")} for c in kids},
+            "written_by": {c: data["children"][c].get("written_by") or "builtin" for c in kids},
             "items": {c: [{"id": i["id"], "skill": i["skill"], "format": i["format"],
                            "optional": bool(i.get("optional"))} for i in data["children"][c]["items"]]
                       for c in kids},
@@ -304,8 +356,11 @@ def _selection(pdir: Path, data: dict[str, Any], requested: list[str]) -> dict[s
 
 
 def build_packet(store: Store, family: FamilyConfig, date: str, only: list[str] | None = None,
-                 history_days: int = 3, respect_schedule: bool = False) -> dict[str, Any]:
+                 history_days: int = 3, respect_schedule: bool = False, writer: Any = None) -> dict[str, Any]:
     """Build (or reuse) the packet for ``date``.
+
+    ``writer`` is the optional model writer (see :mod:`writer`); a model-written build that does
+    not verify is rebuilt with the built-in writer before anything is reported as failed.
 
     Idempotent: a verified dated folder is never overwritten and re-runs return it. A run for a
     child who is not yet in that folder (per-child schedules at different times) adds that
@@ -325,23 +380,31 @@ def build_packet(store: Store, family: FamilyConfig, date: str, only: list[str] 
             if not missing:
                 return {"date": date, "reused": True, "added": [], "ok": True,
                         **_selection(final, existing, requested)}
-            res = _build_into(store, family, date, missing, history_days, existing=existing)
+            res = _build_checked(store, family, date, missing, history_days, existing, writer)
             if res.get("ok") is False:
                 return res
             data = _load(final) or {}
             return {"date": date, "reused": True, "added": [c.id for c in missing], "ok": True,
                     **_selection(final, data, requested)}
-        res = _build_into(store, family, date, kids, history_days, existing=None)
+        res = _build_checked(store, family, date, kids, history_days, None, writer)
         if res.get("ok") is False:
             return res
         return {"date": date, "reused": False, "added": requested, "ok": True,
                 **_selection(final, _load(final) or {}, requested)}
 
 
+def _build_checked(store: Store, family: FamilyConfig, date: str, kids: list[Child], history_days: int,
+                   existing: dict[str, Any] | None, writer: Any) -> dict[str, Any]:
+    res = _build_into(store, family, date, kids, history_days, existing, writer)
+    if res.get("ok") is False and writer is not None:
+        res = _build_into(store, family, date, kids, history_days, existing, None)
+    return res
+
+
 def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child], history_days: int,
-                existing: dict[str, Any] | None) -> dict[str, Any]:
+                existing: dict[str, Any] | None, writer: Any = None) -> dict[str, Any]:
     final = store.packet_dir(date, create=False)
-    plans = [plan_child(store, family, c, date, history_days) for c in kids]
+    plans = [plan_child(store, family, c, date, history_days, writer=writer) for c in kids]
     errors: list[str] = []
     for p in plans:
         errors += verify.check_items(p.items[:-1], budget=p.child.item_budget)
@@ -388,6 +451,8 @@ def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child]
         "class_unit": (p.steer.get("unit") or {}).get("title"),
         "unit_goals": p.steer.get("goals", []),
         "steering_photo": steering_photo(store, p.child.id, date, p.steer),
+        "written_by": p.written_by, "writer_note": p.writer_note, "writer_model": p.writer_model,
+        "writer_fallback": p.writer_fallback,
         "items": [i.to_dict() for i in p.items]} for p in plans}
 
     if errors:

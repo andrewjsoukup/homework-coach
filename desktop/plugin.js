@@ -494,7 +494,14 @@ function TodayView({ ctx, data, open, onPlan }) {
     /* @__PURE__ */ jsxs("div", { className: "hc-hero", children: [
       /* @__PURE__ */ jsx("div", { className: "hc-eyebrow", children: "Today" }),
       /* @__PURE__ */ jsx("h2", { children: data.to_rate ? `${data.to_rate} ${data.to_rate === 1 ? "sheet is" : "sheets are"} waiting for your feedback.` : "Small steps, built around school." }),
-      /* @__PURE__ */ jsx("p", { className: "hc-muted", children: "A photo tells us what class is doing. Your feedback tells us what to practise next." })
+      /* @__PURE__ */ jsx("p", { className: "hc-muted", children: "A photo tells us what class is doing. Your feedback tells us what to practise next." }),
+      data.daily && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
+        data.daily.making ? "Making today\u2019s sheet now. It will appear here within a minute." : data.daily.enabled ? `Daily sheets are on: a new sheet is made at ${data.schedule?.time || "the practice time"} on practice days${data.daily.writer === "model" ? ", with problems chosen by your model" : ""}.` : /* @__PURE__ */ jsxs(Fragment, { children: [
+          "Daily sheets are off. ",
+          /* @__PURE__ */ jsx("button", { type: "button", className: "hc-inline-link", onClick: familyLink, children: "Turn them on in Family & settings" })
+        ] }),
+        data.daily.enabled && !data.daily.making && data.daily.last?.status === "failed" && data.daily.last?.date === data.today ? ` Today\u2019s automatic sheet was not made (${data.daily.last.error || "unknown reason"}).` : ""
+      ] })
     ] }),
     /* @__PURE__ */ jsx(Notice, { error: m.error }),
     /* @__PURE__ */ jsx("div", { className: "hc-grid", children: data.children.map((c) => /* @__PURE__ */ jsxs("section", { className: "hc-card hc-stack", onDragOver: (ev) => ev.preventDefault(), onDrop: (ev) => {
@@ -526,6 +533,7 @@ function TodayView({ ctx, data, open, onPlan }) {
           else open("upload", { childId: c.id });
         }, children: m.isPending ? "Making practice\u2026" : { rate: "Rate this sheet", open: "Open practice", generate: "Make practice", photo: "Add homework", settings: "Set practice days" }[c.action] || "Add homework" }),
         c.packet_date && (c.action === "rate" || c.action === "open") && /* @__PURE__ */ jsx(PrintButton, { ctx, date: c.packet_date, childId: c.id, variant: "outline", children: "Print sheet" }),
+        c.rate_date && /* @__PURE__ */ jsx(Button, { variant: "outline", size: "sm", onClick: () => open("packet", { childId: c.id, date: c.rate_date }), children: `Rate ${c.rate_label}\u2019s sheet` }),
         /* @__PURE__ */ jsxs(Button, { variant: "ghost", size: "sm", onClick: () => onPlan(c.id), children: [
           c.has_plan ? "See class plan" : "Set up class plan",
           " \u2192"
@@ -800,7 +808,8 @@ function FamilySettings({ ctx, scheduleOnly }) {
           ] }, c.id))
         ] })
       ] }),
-      /* @__PURE__ */ jsx(ScheduleForm, { ctx, schedule: q.data.schedule, timezone: q.data.timezone }, JSON.stringify(q.data.schedule))
+      /* @__PURE__ */ jsx(ScheduleForm, { ctx, schedule: q.data.schedule, timezone: q.data.timezone }, JSON.stringify(q.data.schedule)),
+      /* @__PURE__ */ jsx(DailyForm, { ctx })
     ] })
   ] }) });
 }
@@ -860,11 +869,61 @@ function ScheduleForm({ ctx, schedule = {}, timezone }) {
       setSaved(false);
     }, "aria-invalid": !tzOk }) }),
     !tzOk && /* @__PURE__ */ jsx("p", { className: "hc-small", role: "alert", children: "Enter a valid time zone such as America/Chicago." }),
-    /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "These preferences guide packet dates. Automatic delivery requires the Daily homework practice packet blueprint using this timezone. Changing these preferences does not reschedule existing jobs." }),
+    /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Daily sheets (below) follow these days, this time and this time zone. Sending the PDFs to a chat is optional and uses the Daily homework practice packet blueprint; changing these preferences does not reschedule a blueprint job you already created." }),
     /* @__PURE__ */ jsx(Notice, { error: m.error }),
     /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
       /* @__PURE__ */ jsx(Button, { type: "submit", disabled: m.isPending || !days.length || !tzOk, children: "Save schedule" }),
       saved && /* @__PURE__ */ jsx("span", { role: "status", children: "Schedule saved." })
+    ] })
+  ] });
+}
+function DailyForm({ ctx }) {
+  const q = useData(ctx, "/daily");
+  return /* @__PURE__ */ jsx(State, { q, children: (d) => /* @__PURE__ */ jsx(DailyFields, { ctx, d }, `${d.enabled}:${d.writer}`) });
+}
+function DailyFields({ ctx, d }) {
+  const [enabled, setEnabled] = useState(!!d.enabled), [writer, setWriter] = useState(d.writer || "builtin"), [saved, setSaved] = useState(false);
+  const m = useWrite(ctx, () => setSaved(true));
+  const last = d.last;
+  return /* @__PURE__ */ jsxs("form", { className: "hc-card hc-stack", onSubmit: (ev) => {
+    ev.preventDefault();
+    m.mutate({ path: "/daily", body: { enabled, writer } });
+  }, children: [
+    /* @__PURE__ */ jsxs("div", { children: [
+      /* @__PURE__ */ jsx("h2", { children: "Daily sheets" }),
+      /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
+        "When this is on, Homework Coach makes each child's sheet and the parent key at the practice time (",
+        (d.times || []).join(" / ") || "09:00",
+        ") on practice days. No separate job is needed. If Hermes was not running at that time, the sheet is made when you next open Homework Coach that day."
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("label", { className: "hc-row", children: [
+      /* @__PURE__ */ jsx("input", { type: "checkbox", checked: enabled, onChange: (ev) => {
+        setEnabled(ev.target.checked);
+        setSaved(false);
+      } }),
+      /* @__PURE__ */ jsx("span", { children: "Make a new sheet every practice day" })
+    ] }),
+    /* @__PURE__ */ jsx(Field, { label: "Who writes the sheet", children: /* @__PURE__ */ jsxs("select", { className: "hc-select", value: writer, onChange: (ev) => {
+      setWriter(ev.target.value);
+      setSaved(false);
+    }, children: [
+      /* @__PURE__ */ jsx("option", { value: "builtin", children: "Built-in writer (no model, instant)" }),
+      /* @__PURE__ */ jsx("option", { value: "model", children: "Your model (about one model call per child per day)" })
+    ] }) }),
+    writer === "model" && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Your model chooses each problem's type and numbers from the child's latest homework reading, class unit and your ratings. Homework Coach still builds the problems, works out every answer itself and checks the page. If the model is unavailable, the built-in writer makes that day's sheet. This sends the child's grade, school program, class unit, latest homework reading and your recent ratings and notes to your configured model provider. The child's name is not included unless it appears in a note or lesson title." }),
+    writer === "model" && d.model_ready === false && /* @__PURE__ */ jsx("p", { className: "hc-small", role: "alert", children: "This Hermes does not give plugins a model connection, so the built-in writer will be used." }),
+    d.enabled && d.timer_alive === false && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Hermes is not running the once-a-minute check right now, so sheets are made when you open Homework Coach. Keeping the Hermes gateway running makes them at the practice time." }),
+    last && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
+      "Last automatic run: ",
+      last.date,
+      " \xB7 ",
+      last.status === "ok" ? "sheet made" : last.status === "running" ? "in progress" : `not made (${last.error || "unknown reason"})`
+    ] }),
+    /* @__PURE__ */ jsx(Notice, { error: m.error }),
+    /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
+      /* @__PURE__ */ jsx(Button, { type: "submit", disabled: m.isPending, children: "Save daily sheets" }),
+      saved && /* @__PURE__ */ jsx("span", { role: "status", children: "Daily sheets saved." })
     ] })
   ] });
 }
@@ -932,7 +991,11 @@ function RateSession({ ctx, packet: p, selectedItem, onDone, onSource }) {
           " \xB7 ",
           p.focus
         ] }),
-        /* @__PURE__ */ jsx(Source, { packet: p, onSource: () => onSource(p) })
+        /* @__PURE__ */ jsx(Source, { packet: p, onSource: () => onSource(p) }),
+        p.written_by === "model" && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
+          "Problems chosen by your model",
+          p.writer_note ? `: ${p.writer_note}` : "."
+        ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
         /* @__PURE__ */ jsx(PrintButton, { ctx, date: p.date, childId: p.child.id, kind: keyView ? "key" : "practice", size: "sm", children: keyView ? "Print key" : "Print sheet" }),
@@ -1427,6 +1490,7 @@ export {
   ChatPacket,
   ChildForm,
   ClassPlan,
+  DailyForm,
   FamilyPage,
   HistoryView,
   HomeworkPage,

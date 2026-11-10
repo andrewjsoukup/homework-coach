@@ -79,5 +79,8 @@ full problems and a separated key as text; send it and state the failure.
 A parent reply like `nova 1=I 2=S S1=N` (one line per child) is feedback on the
 latest packet: call `homework_coach_record_feedback` with `reply` set to the text
 and tell the parent what changes next time (the result's `message`). If the tool
-reports unknown items, ask about those only. To set up daily packets, run
-`/homework schedule` and follow the printed blueprint commands.
+reports unknown items, ask about those only. For a new sheet every practice day,
+the parent turns on Daily sheets in Family & settings or runs `/homework daily on`
+(add `model` or `builtin` to choose who writes the sheet); no job is needed. To
+also have the PDFs sent to a chat, run `/homework schedule` and follow the printed
+blueprint commands.

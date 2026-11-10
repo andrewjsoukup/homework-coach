@@ -151,7 +151,29 @@ def _body(body: Any) -> dict:
 
 @router.get("/today")
 async def ws_today():
-    return await _run("today")
+    rt = _runtime()
+    ws = _ws()
+    data = await run_in_threadpool(lambda: _call(ws.today, rt))
+    # Daily sheets catch-up: Hermes was not running at the practice time, so make the sheet now.
+    try:
+        _load_pkg()
+        daily = importlib.import_module(f"{_PKG_NAME}.daily")
+        if await run_in_threadpool(lambda: daily.should_run(rt)):
+            _start_job(lambda: daily.run_due(rt), rt)
+            data.setdefault("daily", {})["making"] = True
+    except Exception:  # the catch-up must never break Today
+        pass
+    return data
+
+
+@router.get("/daily")
+async def ws_daily():
+    return await _run("daily_settings")
+
+
+@router.post("/daily")
+async def ws_daily_update(body: dict):
+    return await _run("update_daily", _body(body))
 
 
 @router.post("/generate")

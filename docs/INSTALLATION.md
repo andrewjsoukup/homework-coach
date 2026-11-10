@@ -1,4 +1,4 @@
-# Installing Homework Coach (0.2.2)
+# Installing Homework Coach (0.2.3)
 
 Requires Hermes **>=0.22.5**. The built Desktop UI ships in the package; you do not need
 Node. How the pieces fit together: [PORTABILITY.md](PORTABILITY.md).
@@ -59,13 +59,14 @@ verified; chat tools depend on which channels/tools you have enabled.
 
 **Headless (no Desktop).** Install on the backend and use chat/CLI: put `family.yaml` in
 `plugin-data/homework-coach/` (start from `examples/family.example.yaml`), send photos to
-`homework_coach_intake`, schedule with `/homework schedule` and `/blueprint`, and rate with
+`homework_coach_intake`, turn on a new sheet every practice day with `/homework daily on`
+(optional chat delivery: `/homework schedule` and `/blueprint`), and rate with
 `nova 1=I 2=S S1=N`.
 
 ## Using a second laptop (UI only)
 
-Download the [0.2.2 Desktop UI-only ZIP](https://github.com/andrewjsoukup/homework-coach/releases/download/v0.2.2/Homework-Coach-Desktop-UI-0.2.2.zip)
-when your backend is also on 0.2.2. The [release page](https://github.com/andrewjsoukup/homework-coach/releases/tag/v0.2.2)
+Download the [0.2.3 Desktop UI-only ZIP](https://github.com/andrewjsoukup/homework-coach/releases/download/v0.2.3/Homework-Coach-Desktop-UI-0.2.3.zip)
+when your backend is also on 0.2.3. The [release page](https://github.com/andrewjsoukup/homework-coach/releases/tag/v0.2.3)
 also provides the matching public source archive.
 
 Do **not** install a second backend or copy `family.yaml`, packets, photos or credentials.
@@ -76,6 +77,18 @@ Instead:
    `desktop-plugins/homework-coach/plugin.js`. Back up an existing folder outside
    `desktop-plugins` before replacing it.
 3. Refresh or **Reload desktop plugins**, then connect that Desktop to the same backend.
+
+## Upgrading to 0.2.3 (Daily sheets)
+
+- Daily sheets is **off** after upgrading. Turn it on in **Family & settings** or with
+  `/homework daily on`. Update the backend and the Desktop UI together; a 0.2.2 UI has no
+  Daily sheets switch.
+- If you already run a `homework-coach:daily-packet` blueprint job, you can keep it: a sheet
+  that already exists for the day is never rebuilt, so the two never produce duplicates.
+  Keep the job only if you want the PDFs sent to a chat; otherwise remove it with
+  `hermes cron`.
+- Daily sheets needs a long-running Hermes (gateway or Desktop backend) to make sheets at
+  the practice time. Otherwise the sheet is made when you open Homework Coach that day.
 
 ## Upgrading from 0.1.x
 

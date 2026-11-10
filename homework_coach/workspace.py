@@ -19,7 +19,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from . import catalog, intake
+from . import catalog, daily, intake
 from . import config as cfg
 from . import curriculum as cur
 from .delivery import next_packet_date
@@ -132,9 +132,10 @@ def today(rt: Runtime) -> dict[str, Any]:
     to_rate = 0
     for c in fam.children:
         kids.append(_child_today(rt, c, t))
-        to_rate += 1 if kids[-1]["status"] == "needs_rating" else 0
+        to_rate += 1 if kids[-1]["status"] == "needs_rating" or kids[-1].get("rate_date") else 0
     return {"today": t, "today_label": _human(t), "timezone": fam.timezone, "children": kids, "to_rate": to_rate,
-            "schedule": {"days": list(fam.schedule.days), "time": fam.schedule.time}}
+            "schedule": {"days": list(fam.schedule.days), "time": fam.schedule.time},
+            "daily": daily.status(rt)}
 
 
 def _child_today(rt: Runtime, c: cfg.Child, t: str) -> dict[str, Any]:
@@ -154,6 +155,21 @@ def _child_today(rt: Runtime, c: cfg.Child, t: str) -> dict[str, Any]:
             "next_practice_label": _human(nxt), "last_photo": last_photo, "photo_age_days": photo_age,
             "steered_by": steer.get("source"), "class_unit": unit.get("title") if unit else None,
             "has_plan": cur.load_plan(rt.store, c.id) is not None}
+    # A child who has never had a homework photo (no school homework yet) is not blocked on one when a
+    # class plan or earlier sheets already give practice something to follow.
+    no_photo_ok = photo_age is None and (bool(packets) or steer.get("source") == "curriculum plan")
+    needs_photo = not no_photo_ok and (photo_age is None or photo_age > STALE_PHOTO_DAYS)
+    # Today's sheet always leads; an earlier sheet still waiting for ratings is a second, smaller ask.
+    earlier = [d for d in unrated_past if d < t]
+    also_rate = {"rate_date": earlier[-1], "rate_label": _human(earlier[-1])} if earlier else {}
+    todays = next((p for d, p in packets if d == t), None)
+    if todays is not None and t not in rated:
+        n = len([i for i in todays["children"][c.id].get("items", []) if not i.get("optional")])
+        return {**base, **also_rate, "status": "packet_ready", "packet_date": t,
+                "headline": f"{_human(t)}\u2019s sheet is ready \u00b7 {n} problems", "action": "open"}
+    if todays is None and practice_today and not needs_photo:
+        return {**base, **also_rate, "status": "make_packet", "packet_date": t,
+                "headline": f"Make {_human(t)}\u2019s practice", "action": "generate"}
     if unrated_past:
         d = unrated_past[-1]
         return {**base, "status": "needs_rating", "packet_date": d,
@@ -163,10 +179,7 @@ def _child_today(rt: Runtime, c: cfg.Child, t: str) -> dict[str, Any]:
         n = len([i for i in data["children"][c.id].get("items", []) if not i.get("optional")])
         return {**base, "status": "packet_ready", "packet_date": d,
                 "headline": f"{_human(d)}\u2019s sheet is ready \u00b7 {n} problems", "action": "open"}
-    # A child who has never had a homework photo (no school homework yet) is not blocked on one when a
-    # class plan or earlier sheets already give practice something to follow.
-    no_photo_ok = photo_age is None and (bool(packets) or steer.get("source") == "curriculum plan")
-    if not no_photo_ok and (photo_age is None or photo_age > STALE_PHOTO_DAYS):
+    if needs_photo:
         return {**base, "status": "needs_photo", "packet_date": None,
                 "headline": "Add this week\u2019s homework photo" if obs else "Add a homework photo to start",
                 "action": "photo"}
@@ -717,6 +730,8 @@ def packet_detail(rt: Runtime, day: str, child_id: str) -> dict[str, Any]:
             "focus": c.get("focus", ""), "steered_by": c.get("steered_by"), "class_unit": c.get("class_unit"),
             "photo_date": photo_date, "photo_label": photo_label, "photo_index": photo_index,
             "photo_provenance": provenance,
+            "written_by": c.get("written_by") or "builtin", "writer_note": c.get("writer_note") or "",
+            "writer_fallback": c.get("writer_fallback") or "",
             "unit_goals": c.get("unit_goals", []), "verified": (data.get("verification") or {}).get("ok"),
             "items": items, "rated": bool(ratings), "progression": lines,
             "practice_pdf": str(pdir / files[child_id]) if child_id in files else None,
@@ -933,6 +948,24 @@ def update_schedule(rt: Runtime, body: dict[str, Any]) -> dict[str, Any]:
         raw["timezone"] = _valid_zone(body["timezone"])
     _write_raw(p, raw)
     return {"ok": True, "schedule": raw["schedule"], "timezone": raw.get("timezone")}
+
+
+def daily_settings(rt: Runtime) -> dict[str, Any]:
+    """Daily sheets switch, who writes the sheet, and the last automatic run."""
+    fam = _family(rt)
+    return {**daily.status(rt), "timezone": fam.timezone,
+            "times": sorted({c.schedule.time for c in fam.children} or {fam.schedule.time})}
+
+
+def update_daily(rt: Runtime, body: dict[str, Any]) -> dict[str, Any]:
+    change = {k: body[k] for k in ("enabled", "writer") if k in body}
+    if not change:
+        raise PanelError("nothing to change")
+    try:
+        daily.save_settings(rt.store, change)
+    except ValueError as e:
+        raise PanelError(str(e)) from None
+    return {"ok": True, **daily_settings(rt)}
 
 
 def research_prompt(rt: Runtime, child_id: str) -> dict[str, Any]:

@@ -38,7 +38,9 @@ Goals
 - Packet generator that rotates **formats/representations**, not just operands.
 - Programmatic verification: every answer computed, every drawn count matches
   its inventory, no answers on child pages, render/bounds check.
-- Scheduled generation via a Hermes Automation Blueprint (user creates the job).
+- Daily sheets: opt-in, made by the plugin's own once-a-minute check and on opening the
+  workspace; no cron job. Built-in writer or the parent's model chooses the problems.
+- Optional chat delivery via a Hermes Automation Blueprint (user creates the job).
 - Desktop panel: children, skill progress, recent packets, upload photo, record
   feedback.
 
@@ -246,7 +248,8 @@ result names the changes and the date of the next packet they apply to.
 - Writes PDFs/JSON/Markdown under the plugin data dir (or configured `output_dir`).
 - No network calls of its own, no shell commands, no background processes, no
   telemetry, no credentials.
-- Scheduled runs only exist if the user creates the blueprint job.
+- Daily sheets run only after the parent turns them on; chat-delivery runs only exist if
+  the user creates the blueprint job. The plugin never writes cron files.
 
 ## 11. Testing
 

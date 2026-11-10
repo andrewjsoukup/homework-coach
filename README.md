@@ -11,7 +11,7 @@ packet: a printable PDF for each child plus a separate parent answer key. Rate e
 **I** (independent), **S** (supported) or **N** (not yet), and the next packet adjusts
 one step at a time.
 
-> Status: **0.2.2**. Elementary math (counting, place value, add/sub, multiplication,
+> Status: **0.2.3**. Elementary math (counting, place value, add/sub, multiplication,
 > division, fractions; 31 task formats). See [SPEC.md](SPEC.md).
 
 ![Homework Coach: a tutor and a student working through practice problems](docs/screenshots/banner.png)
@@ -66,8 +66,8 @@ install its Desktop component there too (or use the same-version UI-only release
 The UI creates the first family from **Family & settings → Add child**; you can also copy
 `examples/family.example.yaml` into the plugin-data folder as `family.yaml` and edit it.
 Fields are name, grade, curriculum, minutes per day, schedule and timezone; the schema is in
-[`schemas/family.schema.json`](schemas/family.schema.json). To schedule daily packets, run
-`/blueprint homework-coach:daily-packet` and pick a time, days and where to deliver.
+[`schemas/family.schema.json`](schemas/family.schema.json). To get a new sheet every practice
+day, turn on **Daily sheets** in **Family & settings** (or run `/homework daily on`).
 
 ## How to get the best results
 
@@ -99,13 +99,44 @@ Fields are name, grade, curriculum, minutes per day, schedule and timezone; the 
 | `/homework packet [YYYY-MM-DD] [child...]` | Build (or re-send) a packet; replies with the PDFs attached |
 | `/homework feedback <child> [YYYY-MM-DD] 1=I 2=S S1=N` | Record ratings (latest packet if no date) |
 | `/homework progress [child] [days]` | Progress report (default 14 days) |
+| `/homework daily [on\|off] [builtin\|model]` | Show or change Daily sheets and who writes the sheet |
 | `/homework schedule` | Print the exact `/blueprint` command(s) for your family's schedules |
 
-## Daily packets in your chat
+## Daily sheets
 
-Homework Coach never creates cron jobs or sends messages on its own. It registers the
-**`homework-coach:daily-packet`** Automation Blueprint; you schedule it like any other
-blueprint, and Hermes's normal cron delivery sends the result:
+Turn on **Daily sheets** in **Family & settings** (or run `/homework daily on`) and each
+child gets a new sheet, plus the parent key, at their practice time on their practice days.
+There is no job to create. The sheet appears on Today, ready to print.
+
+- **Off until you turn it on.** Installing the plugin makes nothing by itself.
+- **How it runs.** While the Hermes gateway or Desktop backend is running, the plugin checks
+  once a minute whether a scheduled child still has no sheet for today. If Hermes was not
+  running at the practice time, the sheet is made when you next open Homework Coach that
+  day. A day on which Hermes never runs and nobody opens Homework Coach gets no sheet.
+- **One sheet per child per day.** A sheet that already exists is never rebuilt, whether it
+  came from Daily sheets, the Make button, chat or a blueprint job.
+- **Time zone.** Practice days and times use the family time zone, not the server's.
+- **Failures.** A failed attempt is retried every 10 minutes, up to 6 times that day, and
+  the reason is shown on Today and in Family & settings.
+- **Sheets land in the workspace only.** Daily sheets does not send anything to a chat.
+
+### Who writes the sheet
+
+- **Built-in writer** (default): chooses the problems itself. No model call.
+- **Your model**: your Hermes model chooses each problem's type and numbers from the
+  child's latest homework reading, class unit and your ratings, about one call per child
+  per day. Homework Coach still builds every problem, works out every answer itself and
+  checks the page, so the model never supplies an answer. A choice the plugin cannot use is
+  replaced by the built-in choice, and if the model is unavailable the built-in writer
+  makes that day's sheet. Assign a specific model with the `homework_writer` auxiliary
+  task; otherwise your main model is used.
+
+## Daily packets in your chat (optional)
+
+Daily sheets puts the sheet in the workspace. To also have the PDFs sent to a chat,
+schedule the **`homework-coach:daily-packet`** Automation Blueprint. Homework Coach never
+creates cron jobs or sends messages on its own; you schedule the blueprint like any other,
+and Hermes's normal cron delivery sends the result:
 
 1. In the chat where packets should arrive, run `/homework schedule`. It prints one
    command per distinct schedule in your family config, for example
@@ -202,6 +233,12 @@ channel exposes them.
   schoolwork leave the backend. Route this to a specific or local model with the
   `homework_vision` auxiliary task. Tool results shown in ordinary chat also enter the
   conversation history.
+- **Model-written sheets (only if you choose "Your model"):** each time a sheet is made,
+  the child's grade, school program, class unit and goals, the latest homework reading
+  (problems, what the child wrote, the expected answers), your recent ratings and notes,
+  and recent sheet problems go to your configured model provider (or the model assigned to
+  `homework_writer`). The child's name and family name are not included, unless they appear
+  in a note or lesson title. With the built-in writer nothing is sent.
 - **Files read:** image paths you hand the intake tool, uploads through the panel, teacher
   material you add, and its own config. Panel uploads are staged under
   `plugin-data/homework-coach/uploads/`. Homework staging is removed after intake;
@@ -214,7 +251,9 @@ channel exposes them.
   running the UI.
 - **Not done:** no direct third-party service calls, no telemetry, no credentials stored or
   read, no shell commands. On-demand daemon threads run photo/material reads in the
-  background. A schedule only exists if you create the blueprint job.
+  background. One more background thread checks once a minute whether a Daily sheet is due;
+  it does nothing unless you turned Daily sheets on. The plugin creates no cron jobs: a
+  chat-delivery schedule only exists if you create the blueprint job.
 - **Scheduled delivery:** a job you create from the blueprint sends the packet PDFs
   (including the parent answer key) to that job's delivery channel, by default the chat you
   created it from. Anyone who can read that chat sees them. Disabling the plugin

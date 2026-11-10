@@ -216,8 +216,12 @@ def make_handlers(rt: Runtime) -> dict[str, Callable[..., str]]:
         history = int(rt._get("packet_history_days", 3) or 3)
         in_cron = rt.cron_run() is not None
         # scheduled runs follow the family schedule even when the job names children explicitly
+        from . import daily, writer as writer_mod
+
+        use_model = daily.settings(rt.store)["writer"] == "model" and daily.model_ready(rt)
         res = build_packet(rt.store, fam, date, only, history_days=max(1, min(14, history)),
-                           respect_schedule=in_cron)
+                           respect_schedule=in_cron,
+                           writer=writer_mod.make(rt.llm, rt.store) if use_model else None)
         if res.get("ok") is False:
             msg = failure_message(res, in_cron=in_cron)
             return _err(res.pop("error", "packet generation failed"), **res, message=msg)

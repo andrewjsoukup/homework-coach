@@ -66,3 +66,35 @@ def test_material_propose_writes_nothing(client):
     r = c.post(P + "/children/nova/materials/propose", json={"material": {"unit_title": "Topic 3", "unit_end": "2026-11-13"}})
     assert r.status_code == 200 and r.json()["proposal"] is None  # no plan saved yet
     assert not (store.root / "children" / "nova" / "curriculum.json").exists()
+
+
+def test_daily_routes_and_catch_up_when_the_workspace_is_opened(client, monkeypatch):
+    import importlib
+    import sys
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    c, store = client
+    mod = sys.modules["hc_plugin_api_under_test"]
+    daily = importlib.import_module(f"{mod._PKG_NAME}.daily")
+    monkeypatch.setattr(daily, "_now", lambda family: datetime(2026, 11, 2, 9, 5, tzinfo=ZoneInfo("America/Chicago")))
+
+    assert c.get(P + "/daily").json()["enabled"] is False
+    assert "making" not in c.get(P + "/today").json()["daily"]  # off: opening the workspace makes nothing
+    assert not (store.root / "packets" / "2026-11-02").exists()
+    assert c.post(P + "/daily", json={"writer": "robot"}).status_code == 400
+    assert c.post(P + "/daily", json={}).status_code == 400
+    on = c.post(P + "/daily", json={"enabled": True}).json()
+    assert on["ok"] and on["enabled"] is True and on["writer"] == "builtin"
+
+    assert c.get(P + "/today").json()["daily"]["making"] is True  # practice time passed, no sheet yet
+    made = store.root / "packets" / "2026-11-02" / "packet.json"
+    for _ in range(300):
+        if made.exists() and daily.state(store).get("status") == "ok":
+            break
+        time.sleep(0.1)
+    assert made.exists() and daily.state(store)["status"] == "ok"
+    before = made.stat().st_mtime_ns
+    t = c.get(P + "/today").json()
+    assert "making" not in t["daily"] and t["daily"]["last"]["status"] == "ok"
+    assert made.stat().st_mtime_ns == before  # opened again: nothing rebuilt

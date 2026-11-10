@@ -22,6 +22,7 @@ profile's plugin-data folder. Nothing is written anywhere else.
 | Daily packets (child PDFs + parent key) | `packets/<YYYY-MM-DD>/` | Delete any dated folder |
 | Teacher originals and reviewed summaries/goals | `children/<id>/materials/`, `children/<id>/materials.jsonl` | Delete the files/folder |
 | Panel upload staging | `uploads/<id>/` | Homework staging is removed after intake; teacher staging is removed after saving. Abandoned/failed teacher reads may remain here until you remove them. |
+| Daily sheets switch, chosen writer, last automatic run | `daily.json`, `daily_state.json`, `daily_timer.json` | Delete the files; Daily sheets is then off |
 | Background read jobs | In memory only | Lost on gateway restart |
 
 To wipe everything, disable the plugin and delete `plugin-data/homework-coach/`. Any
@@ -35,21 +36,31 @@ cron jobs you created from the blueprint are yours: remove them with `hermes cro
    `ctx.llm` to whatever provider you have configured (or the model you assign to the
    `homework_vision` auxiliary task). If that provider is a cloud API, the content leaves
    your backend under that provider's terms. To keep it local, assign `homework_vision` to a
-   local vision model. Packet generation and answer checking are deterministic local code.
-2. **Chat results enter the conversation.** Output returned by the tools in ordinary chat
+   local vision model. With the built-in writer, packet generation and answer checking are
+   deterministic local code and send nothing.
+2. **Model-written sheets, only if you choose "Your model".** Each time a sheet is made, the
+   child's grade, school program, class unit and goals, the latest homework reading
+   (problems, what the child wrote, expected answers), your recent ratings and notes, and
+   recent sheet problems go to your configured provider (or the model you assign to the
+   `homework_writer` auxiliary task). The child's name and family name are left out, unless
+   they appear in a note or lesson title. The model only chooses problem types and numbers;
+   answers are computed and checked by local code. With Daily sheets on, this happens once
+   per child per practice day without anyone opening the app.
+3. **Chat results enter the conversation.** Output returned by the tools in ordinary chat
    becomes part of that conversation and your channel's/provider's history.
-3. **Packets go wherever you deliver them.** If you schedule the
+4. **Packets go wherever you deliver them.** If you schedule the
    `homework-coach:daily-packet` blueprint, Hermes's cron delivery sends the PDFs,
    including the parent answer key, to the channel you picked. Anyone in that chat can see
    them.
-4. **Exports and downloads put a copy on the client.** Save and Direct download write a PDF
+5. **Exports and downloads put a copy on the client.** Save and Direct download write a PDF
    to the machine running the Desktop UI. Direct download is an authenticated request that
    serves only registered packet PDFs and material files of the active profile (max 25 MiB).
 
 Homework Coach itself makes **no direct third-party service calls**, runs **no shell
 commands**, has **no telemetry or analytics**, and **holds and reads no credentials** (no
 `requires_env`, no OAuth, no `.env` reads). Photo/material reads run as in-process
-background threads inside the plugin host.
+background threads inside the plugin host, as does the once-a-minute Daily sheets check,
+which does nothing until you turn Daily sheets on. The plugin creates no cron jobs.
 
 ## Recommendations for parents
 

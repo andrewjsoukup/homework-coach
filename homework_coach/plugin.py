@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import schemas
+from . import daily, schemas, writer
 from .delivery import schedule_text
 from .tools import Runtime, make_handlers
 
@@ -27,7 +27,8 @@ BLUEPRINT_PROMPT = (
 
 
 USAGE = ("Usage: /homework status [child] | packet [YYYY-MM-DD] [child...] | "
-         "feedback <child> [YYYY-MM-DD] 1=I 2=S S1=N | progress [child] [days] | schedule")
+         "feedback <child> [YYYY-MM-DD] 1=I 2=S S1=N | progress [child] [days] | schedule | "
+         "daily [on|off] [builtin|model]")
 
 
 def _message_or_json(raw: str) -> str:
@@ -65,6 +66,21 @@ def _slash(handlers: dict[str, Any], rt: Runtime):
                 else:
                     pargs["child_id"] = tok
             return _message_or_json(handlers["homework_coach_progress"](pargs))
+        if sub == "daily":
+            try:
+                change: dict[str, Any] = {}
+                for tok in (p.lower() for p in parts[1:]):
+                    if tok in ("on", "off"):
+                        change["enabled"] = tok == "on"
+                    elif tok in daily.WRITERS:
+                        change["writer"] = tok
+                    else:
+                        return USAGE
+                if change:
+                    daily.save_settings(rt.store, change)
+                return daily.describe(rt)
+            except Exception as e:  # never raise from a slash handler
+                return f"Not done: {type(e).__name__}: {e}"
         if sub == "schedule":
             try:
                 return schedule_text(rt.family())
@@ -83,11 +99,22 @@ def register(ctx: Any) -> None:
         ctx.register_tool(name=schema["name"], toolset=TOOLSET, schema=schema, handler=handlers[schema["name"]])
 
     ctx.register_command("homework", _slash(handlers, rt),
-                         description="Homework Coach: status, packet, feedback, progress, schedule",
-                         args_hint="status|packet|feedback|progress|schedule")
+                         description="Homework Coach: status, packet, feedback, progress, schedule, daily",
+                         args_hint="status|packet|feedback|progress|schedule|daily")
 
     ctx.register_auxiliary_task(AUX_TASK, display_name="Homework Coach vision",
                                 description="Reads homework photos for Homework Coach.", inherit_from="vision")
+    ctx.register_auxiliary_task(writer.AUX_TASK, display_name="Homework Coach sheet writer",
+                                description=("Chooses the problems for practice sheets when 'Who writes the "
+                                             "sheet' is set to your model. Uses your main model unless you "
+                                             "pick another here."))
+
+    # Daily sheets: an in-process check (no Hermes cron job). It does nothing until a parent turns
+    # Daily sheets on in the plugin's settings; unloading the plugin stops it.
+    stop = daily.start_timer(lambda: rt)
+    on_unload = getattr(ctx, "on_unload", None)
+    if stop is not None and callable(on_unload):
+        on_unload(stop)
 
     skills_dir = PLUGIN_DIR / "skills"
     if skills_dir.is_dir():
@@ -98,9 +125,9 @@ def register(ctx: Any) -> None:
     ctx.register_automation_blueprint(
         "daily-packet",
         title="Daily homework practice packet",
-        description=("On practice days, build the child's adaptive practice packet and parent answer key "
-                     "and deliver the PDFs to your chat. Make one job per schedule; /homework schedule "
-                     "prints the exact commands for your family config."),
+        description=("Optional: also send each day's practice PDFs to a chat. Daily sheets in the "
+                     "plugin's settings already make the sheet in the workspace without this job. "
+                     "Make one job per schedule; /homework schedule prints the exact commands."),
         category="family",
         # Built-in weekday presets have no Mon-Sat option, so days is a cron day-of-week text slot.
         schedule_template="{minute} {hour} * * {days}",
