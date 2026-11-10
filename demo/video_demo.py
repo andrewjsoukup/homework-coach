@@ -69,17 +69,18 @@ def _frame(pdf: Path, png: Path) -> None:
     canvas.save(png, optimize=True)
 
 
-def run(out: Path, warmup_days: int = 10, seed: Path | None = None) -> dict:
+def run(out: Path, warmup_days: int = 10, seed: Path | None = None, start: Date | None = None) -> dict:
+    start = start or START
     if out.exists():
         shutil.rmtree(out)
     store = Store(root=out / "data", output_dir=out / "data" / "packets")
     settings = {"family_config": str(FAMILY)}
-    state = {"today": START.isoformat()}
+    state = {"today": start.isoformat()}
     rt = Runtime(get_setting=lambda k, d=None: settings.get(k, d), llm=FixtureVision(), store=store)
     rt.today = lambda _f: state["today"]  # type: ignore[method-assign]
     tools = make_handlers(rt)
     fam = config.load(FAMILY)
-    days = _practice_days(START, warmup_days + 2, tuple(fam.child(CHILD).schedule.days))
+    days = _practice_days(start, warmup_days + 2, tuple(fam.child(CHILD).schedule.days))
     log = ["# Homework Coach — video run (fictional Maple family)", ""]
 
     intake = json.loads(tools["homework_coach_intake"](
@@ -157,9 +158,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=ROOT / "demo" / "out" / "video")
     ap.add_argument("--warmup-days", type=int, default=10)
+    ap.add_argument("--start", type=Date.fromisoformat, default=None,
+                    help="first practice day (YYYY-MM-DD, a Monday); default 2026-09-14")
     ap.add_argument("--seed", type=Path, help="copy the faded-support state into this (empty) plugin data dir and stop")
     a = ap.parse_args()
-    print(json.dumps(run(a.out, a.warmup_days, a.seed), indent=2))
+    print(json.dumps(run(a.out, a.warmup_days, a.seed, a.start), indent=2))
 
 
 if __name__ == "__main__":

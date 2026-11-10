@@ -38,6 +38,7 @@ class ChildPlan:
     review_skill: str
     dims: dict[str, dict[str, int]]
     prev_formats: list[str] = field(default_factory=list)
+    steer: dict[str, Any] = field(default_factory=dict)
 
 
 def _seed(*parts: str) -> int:
@@ -97,6 +98,13 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
     rng = random.Random(_seed(family.family_id, child.id, date))
     states = store.load_skills(child.id)
     anchor = store.load_anchor(child.id) or {}
+    from . import curriculum
+
+    steer = curriculum.steer(store, child, date)
+    if steer["source"] == "curriculum plan":
+        # no recent homework photo: follow the preloaded unit; the photo's topic becomes review
+        anchor = {"skill": steer["skill"], "formats": anchor.get("formats") if anchor.get("skill") == steer["skill"] else [],
+                  "previous_skill": anchor.get("skill") if anchor.get("skill") != steer["skill"] else None}
     target = anchor.get("skill") or catalog.default_skill(child.grade)
     if not catalog.formats_for(target, child.grade):
         target = catalog.default_skill(child.grade)
@@ -139,9 +147,32 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
     stretch_fmt = next((f for f in t_order if "word_problem" in f), t_order[-1])
     stretch = _make(stretch_fmt, rng, child.grade, s_dims, target, seen)
     stretch.id, stretch.role, stretch.optional = "S1", "stretch", True
+    from .tips import tip_for
+
+    unit = steer.get("unit") if steer.get("source") != "grade default" else None
+    for it in core + [stretch]:
+        it.parent_tip = tip_for(it.format, unit)
 
     return ChildPlan(child=child, items=core + [stretch], target_skill=target, review_skill=review,
-                     dims={target: t_dims, review: r_dims}, prev_formats=history[-1] if history else [])
+                     dims={target: t_dims, review: r_dims}, prev_formats=history[-1] if history else [],
+                     steer=steer)
+
+
+def steering_photo(store: Store, child_id: str, date: str, steer: dict[str, Any]) -> dict[str, Any] | None:
+    """The homework photo a photo-steered packet was built from, frozen at build time.
+
+    Stored in packet.json so a photo added later (even the same day) never rewrites history.
+    ``index`` is the position in observations.jsonl (append-only); date/source pin it.
+    """
+    if steer.get("source") != "homework photo":
+        return None
+    obs = store.observations(child_id)
+    idx = next((i for i in range(len(obs) - 1, -1, -1) if obs[i].date <= date), None)
+    if idx is None:
+        return None
+    o = obs[idx]
+    return {"index": idx, "date": o.date, "source": o.source, "lesson": o.lesson,
+            "anchor_since": steer.get("anchor_since")}
 
 
 def scheduled_children(family: FamilyConfig, date: str, only: list[str] | None = None,
@@ -164,7 +195,10 @@ def progression_md(date: str, plans: list[ChildPlan]) -> str:
         lines += [
             f"## {p.child.name} (grade {p.child.grade})",
             "",
-            f"- Classroom target: {catalog.SKILLS.get(p.target_skill, p.target_skill)}",
+            f"- Classroom target: {catalog.SKILLS.get(p.target_skill, p.target_skill)}"
+            f" (from {p.steer.get('source', 'grade default')})",
+            *([f"- Class unit: {p.steer['unit']['title']}"] if p.steer.get("unit") else []),
+            *([f"- Unit goals: {'; '.join(p.steer['goals'])}"] if p.steer.get("goals") else []),
             f"- Supporting review: {catalog.SKILLS.get(p.review_skill, p.review_skill)}",
             f"- Core items: {len(fmts)} (budget {p.child.item_budget}) + 1 optional stretch",
             "- Difficulty dims: " + "; ".join(
@@ -261,6 +295,8 @@ def _selection(pdir: Path, data: dict[str, Any], requested: list[str]) -> dict[s
             files[label] = str((pdir / key_file).resolve())
     return {"folder": str(pdir.resolve()), "files": files,
             "children": {c: data["children"][c]["focus"] for c in kids},
+            "steering": {c: {"source": data["children"][c].get("steered_by"),
+                             "unit": data["children"][c].get("class_unit")} for c in kids},
             "items": {c: [{"id": i["id"], "skill": i["skill"], "format": i["format"],
                            "optional": bool(i.get("optional"))} for i in data["children"][c]["items"]]
                       for c in kids},
@@ -334,7 +370,11 @@ def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child]
             errors += rc["errors"]
     except Exception as e:  # rendering failed → honest text fallback, nothing moved into place
         shutil.rmtree(tmp, ignore_errors=True)
-        return {"date": date, "reused": False, "ok": False, "error": f"PDF rendering failed: {type(e).__name__}: {e}",
+        msg = f"PDF rendering failed: {type(e).__name__}: {e}"
+        if isinstance(e, ImportError):
+            msg += (" — the plugin's PDF libraries are installed but this Hermes process started before "
+                    "they were; restart Hermes (gateway / desktop app) once to load them")
+        return {"date": date, "reused": False, "ok": False, "error": msg,
                 "fallback_text": text_fallback(date, plans), "files": {}}
 
     verification = {"ok": not errors, "errors": errors, "raster_checked": render_info,
@@ -344,6 +384,10 @@ def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child]
         "review_skill": p.review_skill, "dims": p.dims,
         "focus": f"{catalog.SKILLS.get(p.target_skill, p.target_skill)} + review of "
                  f"{catalog.SKILLS.get(p.review_skill, p.review_skill).split(' (')[0].lower()}",
+        "steered_by": p.steer.get("source"),
+        "class_unit": (p.steer.get("unit") or {}).get("title"),
+        "unit_goals": p.steer.get("goals", []),
+        "steering_photo": steering_photo(store, p.child.id, date, p.steer),
         "items": [i.to_dict() for i in p.items]} for p in plans}
 
     if errors:

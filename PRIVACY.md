@@ -1,13 +1,17 @@
-# Privacy: children's data stays local
+# Privacy: where children's data lives and where it goes
 
-Homework Coach handles children's schoolwork. The design rule is that **everything it
-stores stays on the machine running Hermes**, and the only thing that ever leaves is what
-you explicitly route through your own Hermes setup.
+Homework Coach handles children's schoolwork. Everything it stores stays on the **backend
+host**: the machine running the Hermes gateway/plugin host for the active profile. With a
+local install that is your own computer; with a remote or cloud backend it is that server,
+**not necessarily the device you are looking at**. Beyond the backend, data leaves only
+through your own Hermes setup, as listed below.
 
 ## What is stored, and where
 
-Everything lives under `<HERMES_HOME>/plugin-data/homework-coach/` (or the `output_dir`
-you configure). Nothing is written anywhere else.
+Everything lives under the active profile's `plugin-data/homework-coach/` on the backend
+(or the `output_dir` / `family_config` paths you configure; those are server-side paths).
+`~` and environment variables are expanded; a relative path setting is anchored to the
+profile's plugin-data folder. Nothing is written anywhere else.
 
 | Data | File(s) | Removable |
 |---|---|---|
@@ -16,28 +20,36 @@ you configure). Nothing is written anywhere else.
 | I/S/N feedback history | `children/<id>/feedback.jsonl` | Delete the file; skill levels rebuild from what remains |
 | Copies of homework photos | `children/<id>/sources/` | Set `keep_source_images: false`; delete the folder |
 | Daily packets (child PDFs + parent key) | `packets/<YYYY-MM-DD>/` | Delete any dated folder |
-| Desktop-panel upload staging | `uploads/<id>/` | Deleted automatically after intake |
+| Teacher originals and reviewed summaries/goals | `children/<id>/materials/`, `children/<id>/materials.jsonl` | Delete the files/folder |
+| Panel upload staging | `uploads/<id>/` | Homework staging is removed after intake; teacher staging is removed after saving. Abandoned/failed teacher reads may remain here until you remove them. |
+| Background read jobs | In memory only | Lost on gateway restart |
 
 To wipe everything, disable the plugin and delete `plugin-data/homework-coach/`. Any
 cron jobs you created from the blueprint are yours: remove them with `hermes cron`.
 
-## What leaves the machine, and only when you choose it
+## What leaves the backend, and only when you choose it
 
-1. **Homework photos go to your model provider.** Reading handwriting requires a vision
-   model, so intake sends the photo(s) through Hermes's `ctx.llm` to whatever provider you
-   have configured (or the model you assign to the `homework_vision` auxiliary task). If
-   that provider is a cloud API, the photo leaves your machine under that provider's
-   terms. To keep photos fully local, assign `homework_vision` to a local vision model.
-   Packet generation and answer checking are deterministic local code. No model sees the
-   packets.
-2. **Packets go wherever you deliver them.** If you schedule the
-   `homework-coach:daily-packet` blueprint, Hermes's normal cron delivery posts the PDFs,
-   including the parent answer key, to the chat you picked. Anyone in that chat can see
+1. **Homework photos and teacher material go to your model provider.** Reading handwriting
+   or teacher image requires a model, so the plugin sends homework/teacher images,
+   text extracted from teacher PDFs/text files, and child context through Hermes's
+   `ctx.llm` to whatever provider you have configured (or the model you assign to the
+   `homework_vision` auxiliary task). If that provider is a cloud API, the content leaves
+   your backend under that provider's terms. To keep it local, assign `homework_vision` to a
+   local vision model. Packet generation and answer checking are deterministic local code.
+2. **Chat results enter the conversation.** Output returned by the tools in ordinary chat
+   becomes part of that conversation and your channel's/provider's history.
+3. **Packets go wherever you deliver them.** If you schedule the
+   `homework-coach:daily-packet` blueprint, Hermes's cron delivery sends the PDFs,
+   including the parent answer key, to the channel you picked. Anyone in that chat can see
    them.
+4. **Exports and downloads put a copy on the client.** Save and Direct download write a PDF
+   to the machine running the Desktop UI. Direct download is an authenticated request that
+   serves only registered packet PDFs and material files of the active profile (max 25 MiB).
 
-Homework Coach itself makes **no network calls**, runs **no shell commands** or background
-processes, has **no telemetry or analytics**, and **holds and reads no credentials** (no
-`requires_env`, no OAuth, no `.env` reads).
+Homework Coach itself makes **no direct third-party service calls**, runs **no shell
+commands**, has **no telemetry or analytics**, and **holds and reads no credentials** (no
+`requires_env`, no OAuth, no `.env` reads). Photo/material reads run as in-process
+background threads inside the plugin host.
 
 ## Recommendations for parents
 
@@ -45,6 +57,8 @@ processes, has **no telemetry or analytics**, and **holds and reads no credentia
   or teacher names.
 - Crop photos to the worksheet. Avoid faces, name labels and school letterheads.
 - Deliver packets to a private chat, not a group.
+- On a remote/cloud backend, protect that host (disk, backups, access) as you would the
+  child's records, and use a persistent volume so the data survives restarts.
 - Results are practice signals from a few photos. They are not diagnoses, grades or
   mastery claims.
 

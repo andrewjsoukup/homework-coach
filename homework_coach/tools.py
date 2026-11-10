@@ -21,7 +21,9 @@ class Runtime:
                  cron_run: Callable[[], Any] | None = None):
         self._get = get_setting
         self.llm = llm
-        self._store = store
+        self._injected_store = store
+        self._store: Store | None = None
+        self._store_key: tuple[Path, str] | None = None
         self._cron_run = cron_run or (lambda: None)
 
     def cron_run(self) -> Any:
@@ -33,14 +35,43 @@ class Runtime:
 
     @property
     def store(self) -> Store:
-        if self._store is None:
-            out = self._get("output_dir", "") or None
-            self._store = Store(output_dir=Path(out) if out else None)
+        """Injected store (tests/demos), else one built from the *current* ``output_dir`` setting.
+
+        Settings are re-read on every access: the plugin is registered once per long-lived
+        process (gateway, desktop backend), and a store cached at first use would keep writing
+        to / reading from a stale folder after the parent changes ``output_dir``.
+        """
+        if self._injected_store is not None:
+            return self._injected_store
+        from . import storage
+        root = storage.default_root()
+        out = self._resolve_setting("output_dir")
+        key = (root, str(out))
+        if self._store is None or self._store_key != key:
+            self._store = Store(root=root, output_dir=out)
+            self._store_key = key
         return self._store
 
+    def _resolve_setting(self, key: str) -> Path | None:
+        """A path setting with ``~`` / ``$VAR`` expanded; relative values anchor to the plugin data root."""
+        import os
+
+        raw = str(self._get(key, "") or "")
+        if not raw:
+            return None
+        p = Path(os.path.expandvars(os.path.expanduser(raw)))
+        if not p.is_absolute():
+            from . import storage
+
+            base = self._injected_store.root if self._injected_store is not None else storage.default_root()
+            p = Path(base) / p
+        return p
+
+    def family_path(self) -> Path:
+        return self._resolve_setting("family_config") or self.store.family_config_path()
+
     def family(self) -> cfg.FamilyConfig:
-        path = self._get("family_config", "") or self.store.family_config_path()
-        return cfg.load(path)
+        return cfg.load(self.family_path())
 
     def today(self, family: cfg.FamilyConfig) -> str:
         from zoneinfo import ZoneInfo
@@ -90,6 +121,54 @@ def make_handlers(rt: Runtime) -> dict[str, Callable[..., str]]:
             return _err(f"unknown child {only!r}")
         recent = [str(p) for p in rt.store.recent_packets(5)]
         return _ok(family_id=fam.family_id, timezone=fam.timezone, children=kids, recent_packets=recent)
+
+    @_guard
+    def set_curriculum(args: dict, **_: Any) -> str:
+        from . import curriculum as cur
+
+        fam = rt.family()
+        child = fam.child(args["child_id"])
+        try:
+            plan = cur.save_plan(rt.store, child, curriculum=args.get("curriculum", ""), units=args.get("units") or [],
+                                 sources=args.get("sources"), school_year=args.get("school_year", ""),
+                                 replace=args.get("replace", True) is not False)
+        except cur.CurriculumError as e:
+            return _err(str(e))
+        today = rt.today(fam)
+        now, nxt = cur.unit_on(plan, today), cur.next_unit(plan, today)
+        skipped = [u["title"] for u in plan["units"] if not u["practicable"]]
+        msg = [f"Saved {len(plan['units'])} unit(s) of {plan['curriculum']} for {child.name}."]
+        msg.append(f"Now: {now['title']} ({now['start']} to {now['end']})." if now else "No unit covers today.")
+        if nxt:
+            msg.append(f"Next: {nxt['title']} from {nxt['start']}.")
+        if skipped:
+            msg.append(f"Recorded but not practised yet (no matching skill): {', '.join(skipped)}.")
+        return _ok(child_id=child.id, plan=plan, current_unit=now, next_unit=nxt, message=" ".join(msg))
+
+    @_guard
+    def add_material(args: dict, **_: Any) -> str:
+        from . import curriculum as cur
+
+        fam = rt.family()
+        child = fam.child(args["child_id"])
+        try:
+            rec = cur.add_material(rt.store, child, path=args.get("path"), title=args.get("title", ""),
+                                   date=args.get("date") or rt.today(fam), kind=args.get("kind", ""),
+                                   skill=args.get("skill", ""), goals=args.get("goals"), summary=args.get("summary", ""))
+        except cur.CurriculumError as e:
+            return _err(str(e))
+        tag = f" ({rec['skill']})" if rec["skill"] else ""
+        return _ok(child_id=child.id, material=rec, message=f"Saved '{rec['title']}' for {child.name}{tag}.")
+
+    @_guard
+    def progress(args: dict, **_: Any) -> str:
+        from . import progress as prog
+
+        try:
+            report = prog.build(rt, args.get("child_id"), int(args.get("days") or 14))
+        except KeyError as e:
+            return _err(str(e).strip("'\""))
+        return _ok(**report)
 
     @_guard
     def record_feedback(args: dict, **_: Any) -> str:
@@ -156,6 +235,9 @@ def make_handlers(rt: Runtime) -> dict[str, Callable[..., str]]:
         "homework_coach_generate_packet": generate_packet,
         "homework_coach_record_feedback": record_feedback,
         "homework_coach_status": status,
+        "homework_coach_progress": progress,
+        "homework_coach_set_curriculum": set_curriculum,
+        "homework_coach_add_material": add_material,
     }
 
 

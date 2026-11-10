@@ -3,7 +3,7 @@ import re
 
 from .conftest import ROOT
 
-SKIP_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache"}
+SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".pytest_cache"}
 # Local run outputs; gitignored (see .gitignore), never published.
 SKIP_PREFIXES = {("demo", "out"), ("packets",), ("out",)}
 BINARY_MAGIC = (b"\x7fELF", b"MZ", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\x00asm")

@@ -93,6 +93,7 @@ class PacketItem:
     display: list[str] = field(default_factory=list)  # answer choices / extra child-page lines
     hint: str = ""  # scaffold line shown on the child page (empty at higher scaffold levels)
     work_lines: int = 2  # blank lines reserved for working
+    parent_tip: str = ""  # parent-only "if stuck" coaching line (parent key + desktop rate desk)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

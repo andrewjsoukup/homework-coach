@@ -6,3 +6,4 @@ __pycache__/
 /packets/
 /out/
 /demo/out/
+node_modules/

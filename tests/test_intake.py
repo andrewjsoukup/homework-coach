@@ -157,7 +157,11 @@ def test_same_topic_does_not_duplicate_anchor(tmp_path, photo, fake_ctx):
                           child=fam.child("nova"), image_paths=[str(photo)], date=d)
     assert store.read_brief("nova").count("## Current classroom anchor") == 1
     # topic change → new dated anchor, old topic becomes review
-    intake.run_intake(llm=FakeLlm(_vision(main_skill="fractions", items=[])), store=store,
+    intake.run_intake(llm=FakeLlm(_vision(main_skill="fractions", items=[{
+        "printed_prompt": "One half of the circle is shaded", "child_answer": "1/2",
+        "skill": "fractions", "format": "fraction_of_set", "status": "correct", "confidence": 0.9,
+        "attempted": True,
+    }])), store=store,
                       child=fam.child("nova"), image_paths=[str(photo)], date="2026-11-05")
     a = store.load_anchor("nova")
     assert a["skill"] == "fractions" and a["previous_skill"] == "division"

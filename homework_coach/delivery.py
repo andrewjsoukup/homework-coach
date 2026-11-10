@@ -45,6 +45,11 @@ def packet_message(result: dict[str, Any], family: FamilyConfig) -> str:
         stretch = len(items.get(cid, [])) - len(core)
         extra = f" + {stretch} optional stretch" if stretch else ""
         lines.append(f"- {names.get(cid, cid)}: {focus} ({len(core)} items{extra})")
+        st = (result.get("steering") or {}).get(cid) or {}
+        if st.get("unit"):
+            lines.append(f"  Class unit: {st['unit']} (steered by {st.get('source') or 'plan'})")
+        elif st.get("source") == "homework photo":
+            lines.append("  Steered by: latest homework photo")
     lines.append("")
     for cid in result.get("children", {}):
         if cid in files:

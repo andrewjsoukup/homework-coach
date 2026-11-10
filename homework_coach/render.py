@@ -454,7 +454,8 @@ def key_pdf(path: Path, plans: list["ChildPlan"], date: str) -> None:
             prompt = wrap(it.prompt + (f"  [{desc}]" if desc else ""), FONT, 9, width)
             ans = wrap(f"Answer: {it.answer}", BOLD, 10.5, width)
             work = wrap(it.worked_solution, FONT, 9.5, width)
-            h = len(prompt) * 12 + len(ans) * 14 + len(work) * 12 + 14
+            tip = wrap(f"If stuck: {it.parent_tip}", FONT, 8.5, width) if it.parent_tip else []
+            h = len(prompt) * 12 + len(ans) * 14 + len(work) * 12 + len(tip) * 11 + 14
             p.need(h)
             top = p.y
             p.text(MARGIN, p.y - 10.5, f"{it.id}.", BOLD, 10.5)
@@ -467,6 +468,9 @@ def key_pdf(path: Path, plans: list["ChildPlan"], date: str) -> None:
             for ln in work:
                 p.text(MARGIN + 30, p.y - 9.5, ln, FONT, 9.5)
                 p.y -= 12
+            for ln in tip:
+                p.text(MARGIN + 30, p.y - 8.5, ln, FONT, 8.5, 0.35)
+                p.y -= 11
             bx = box_col
             for k, letter_ in enumerate("ISN"):
                 cx = bx + k * 32

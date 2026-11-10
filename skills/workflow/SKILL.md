@@ -10,7 +10,30 @@ metadata:
 # Homework Coach workflow
 
 Tools: `homework_coach_intake`, `homework_coach_generate_packet`,
-`homework_coach_record_feedback`, `homework_coach_status`.
+`homework_coach_record_feedback`, `homework_coach_status`, `homework_coach_progress`,
+`homework_coach_set_curriculum`, `homework_coach_add_material`.
+
+Homework Coach supplements school; it does not replace it. The school-assigned
+homework photo is the steering signal: practice follows what the class is doing
+this week, and the parent's I/S/N ratings tune difficulty between photos.
+
+## Preload the curriculum (once per school year)
+1. Research it yourself first: the child's district pacing guide / scope and
+   sequence, the publisher program in the child's `curriculum`, and the grade
+   standards. Prefer official district or publisher pages; cite them.
+2. Call `homework_coach_set_curriculum` with units in order, best-estimate
+   dates, goals, standards and source URLs. Map each unit to the closest skill;
+   leave `skill` empty when none fits (it is recorded, not practised).
+3. Tell the parent the dates are estimates and that homework photos win.
+
+## Teacher materials
+When the parent shares a newsletter, unit overview, study guide or practice
+page, read it, then call `homework_coach_add_material` with the skill, stated
+goals and a one-line summary. If it shows the class is ahead of or behind the
+plan, offer to correct the unit dates with `homework_coach_set_curriculum`.
+
+Steering order for each packet: homework photo from the last 14 days →
+curriculum unit active today → grade default.
 
 ## Observe before adapting
 1. Separate printed prompts, the child's working, final answers, skip or
@@ -35,6 +58,16 @@ Tools: `homework_coach_intake`, `homework_coach_generate_packet`,
   supporting review; item budget unchanged.
 - No answers on child pages. Separate parent key with worked solutions and an
   I/S/N prompt.
+
+## Measure and monitor
+- When the parent asks how a child is doing, whether practice still matches
+  class, or wants a weekly check-in, call `homework_coach_progress` and reply
+  with its `message`. It reports the current class focus (latest photo), rated
+  practice days, share done on their own vs the prior window, and per-skill
+  trends.
+- If the last homework photo is more than a week old, ask for a new one rather
+  than guessing what class is on.
+- Describe trends plainly; never turn a few ratings into a diagnosis or grade.
 
 ## Delivery
 Report "brief updated" separately from "packet generated". When delivering a

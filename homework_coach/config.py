@@ -196,10 +196,17 @@ def validate(raw: Any) -> FamilyConfig:
 
 
 def load(path: str | Path) -> FamilyConfig:
-    import yaml  # PyYAML ships with Hermes core
-
     p = Path(path)
     if not p.is_file():
         raise ConfigError([f"family config not found: {p}"])
-    with p.open(encoding="utf-8") as f:
-        return validate(yaml.safe_load(f))
+    text = p.read_text(encoding="utf-8")
+    try:
+        import yaml  # declared dependency; may be absent in the plugin's isolated env
+    except ImportError:
+        import json  # JSON is valid YAML, so a .json family file always works
+        try:
+            return validate(json.loads(text))
+        except ValueError:
+            raise ConfigError(["PyYAML is not installed in this environment; install the plugin's "
+                               "dependencies or write the family file as JSON (family.json)"]) from None
+    return validate(yaml.safe_load(text))

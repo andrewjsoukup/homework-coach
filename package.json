@@ -1,0 +1,16 @@
+{
+  "name": "homework-coach",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node desktop/build.mjs",
+    "check:bundle": "node desktop/build.mjs --check",
+    "test": "node --test tests/desktop/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

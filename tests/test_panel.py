@@ -139,7 +139,7 @@ def test_intake_upload_runs_tool_and_drops_staging(tmp_path, family_file):
 def _load_api(monkeypatch, tmp_path, family_file):
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
-    pytest.importorskip("multipart")
+
     name = "hc_plugin_api_under_test"
     spec = importlib.util.spec_from_file_location(name, ROOT / "dashboard" / "plugin_api.py")
     mod = importlib.util.module_from_spec(spec)
@@ -182,12 +182,12 @@ def test_router_endpoints(monkeypatch, tmp_path, family_file):
     assert c.post(f"{base}/feedback", json={"child_id": "nova", "packet_date": "bad", "ratings": {"1": "I"}}
                   ).status_code == 400
 
-    r = c.post(f"{base}/intake?child_id=nova", files={"file": ("page.png", PNG, "image/png")})
-    assert r.status_code == 200 and "ok" in r.json()
-    assert c.post(f"{base}/intake?child_id=nova", files={"file": ("page.txt", b"hi", "text/plain")}
-                  ).status_code == 400
-    assert c.post(f"{base}/intake?child_id=ghost", files={"file": ("page.png", PNG, "image/png")}
-                  ).status_code == 404
+    import base64
+    photo = {"child_id": "nova", "filename": "page.png", "data_b64": base64.b64encode(PNG).decode("ascii")}
+    r = c.post(f"{base}/intake64", json=photo)
+    assert r.status_code == 200 and r.json()["job"]
+    assert c.post(f"{base}/intake64", json={**photo, "filename": "page.txt"}).status_code == 400
+    assert c.post(f"{base}/intake64", json={**photo, "child_id": "ghost"}).status_code == 404
 
 
 def test_router_private_package_name_does_not_shadow(monkeypatch, tmp_path, family_file):
@@ -205,4 +205,5 @@ def test_desktop_and_dashboard_layout():
     imports = {line.split("from")[-1].strip().strip("'\";") for line in js.splitlines()
                if line.startswith("import ")}
     assert imports <= {"@hermes/plugin-sdk", "react", "react/jsx-runtime"}, imports
-    assert "id: PLUGIN_ID" in js and "const PLUGIN_ID = 'homework-coach'" in js
+    assert 'var ID = "homework-coach"' in js and "id: ID" in js
+    assert "Generated from desktop/src/plugin.jsx" in js  # rebuild with: node desktop/build.mjs

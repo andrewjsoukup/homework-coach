@@ -27,7 +27,7 @@ BLUEPRINT_PROMPT = (
 
 
 USAGE = ("Usage: /homework status [child] | packet [YYYY-MM-DD] [child...] | "
-         "feedback <child> [YYYY-MM-DD] 1=I 2=S S1=N | schedule")
+         "feedback <child> [YYYY-MM-DD] 1=I 2=S S1=N | progress [child] [days] | schedule")
 
 
 def _message_or_json(raw: str) -> str:
@@ -57,6 +57,14 @@ def _slash(handlers: dict[str, Any], rt: Runtime):
             if rest:
                 args["child_ids"] = rest
             return _message_or_json(handlers["homework_coach_generate_packet"](args))
+        if sub == "progress":
+            pargs: dict[str, Any] = {}
+            for tok in parts[1:]:
+                if tok.isdigit():
+                    pargs["days"] = int(tok)
+                else:
+                    pargs["child_id"] = tok
+            return _message_or_json(handlers["homework_coach_progress"](pargs))
         if sub == "schedule":
             try:
                 return schedule_text(rt.family())
@@ -75,8 +83,8 @@ def register(ctx: Any) -> None:
         ctx.register_tool(name=schema["name"], toolset=TOOLSET, schema=schema, handler=handlers[schema["name"]])
 
     ctx.register_command("homework", _slash(handlers, rt),
-                         description="Homework Coach: status, packet, feedback, schedule",
-                         args_hint="status|packet|feedback|schedule")
+                         description="Homework Coach: status, packet, feedback, progress, schedule",
+                         args_hint="status|packet|feedback|progress|schedule")
 
     ctx.register_auxiliary_task(AUX_TASK, display_name="Homework Coach vision",
                                 description="Reads homework photos for Homework Coach.", inherit_from="vision")

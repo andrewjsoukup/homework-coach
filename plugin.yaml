@@ -1,5 +1,5 @@
 name: homework-coach
-version: 0.1.0
+version: 0.2.0
 manifest_version: 2
 api_version: 1
 description: >-
@@ -17,6 +17,9 @@ provides_tools:
   - homework_coach_generate_packet
   - homework_coach_record_feedback
   - homework_coach_status
+  - homework_coach_progress
+  - homework_coach_set_curriculum
+  - homework_coach_add_material
 provides_hooks: []
 
 # No capabilities, no requires_env, no requires_auth, no oauth: the plugin holds no
