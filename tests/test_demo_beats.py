@@ -14,14 +14,17 @@ pytest.importorskip("reportlab")
 
 
 def _run(out: Path, *args: str) -> str:
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
     res = subprocess.run([sys.executable, str(ROOT / "demo" / "demo_beats.py"), "--out", str(out), *args],
                          capture_output=True, text=True, encoding="utf-8", env=env, cwd=ROOT)
     assert res.returncode == 0, res.stderr
     return res.stdout
 
 
-def test_script_beats_reproduce(tmp_path):
+def test_script_beats_reproduce(tmp_path, monkeypatch):
+    # A legacy Windows locale must not corrupt the explicitly UTF-8 subprocess pipe.
+    monkeypatch.setenv("PYTHONIOENCODING", "cp1252")
+    monkeypatch.setenv("PYTHONUTF8", "0")
     out = tmp_path / "take"
     reply = (ROOT / "demo" / "feedback" / "nova_2026-09-19.txt").read_text("utf-8").strip()
     assert "attempted 7, correct 5, not scored 2" in _run(out, "photo")
