@@ -292,8 +292,9 @@ async def ws_research_prompt(child_id: str):
 
 @router.get("/packet/{packet_date}/{child_id}/preview")
 async def ws_packet_preview(packet_date: str, child_id: str, page: int = Query(0, ge=0, le=50),
-                            kind: str = Query("practice")):
-    return await _run("packet_preview", packet_date, child_id, page, kind)
+                            kind: str = Query("practice"), width: int = Query(1100, ge=300, le=2400)):
+    # ``width`` lets the Print button ask for a print-resolution render of the same page.
+    return await _run("packet_preview", packet_date, child_id, page, kind, width)
 
 
 @router.post("/children/{child_id}/materials/propose")

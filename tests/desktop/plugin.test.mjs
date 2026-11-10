@@ -69,7 +69,7 @@ const packet={date:'2026-11-07',label:'Sat Nov 7',child:{id:'nova',name:'Nova',g
 test('rate desk shows actual sheet preview, source, keyboard help and support tip',()=>{
  sdk.setResponses({'/packet/2026-11-07/nova':packet,'/packet/2026-11-07/nova/preview?page=0&kind=practice':{image:'data:image/png;base64,eA==',page:0,pages:1}})
  const html=render(mod.RateDesk,{date:packet.date,childId:'nova',onDone:()=>{},onSource:()=>{}})
- for(const x of ['Nova','Four groups','On their own','With support','Not yet','skip-count','Parent key','Save sheet','Photo','Optional','Save ratings'])assert.ok(html.includes(x),x)
+ for(const x of ['Nova','Four groups','On their own','With support','Not yet','skip-count','Parent key','Print sheet','Save sheet','Photo','Optional','Save ratings'])assert.ok(html.includes(x),x)
  assert.ok(html.includes('data:image/png;base64,eA=='),'renders the real PDF preview returned by backend')
  assert.equal(mod.ratingKey({key:'I',target:{tagName:'INPUT'}}),null)
  assert.equal(mod.ratingKey({key:'n',target:{tagName:'BUTTON'}}),'N')
@@ -93,7 +93,7 @@ test('history and homework read-back expose sources and corrections',()=>{
  sdk.setResponses({'/children/nova/history':{child:{id:'nova',name:'Nova'},events:[{type:'homework',date:'2026-11-06',label:'Fri Nov 6',index:0,title:'Lesson 3-2',detail:'12 problems read · 2 to check'},{type:'practice',date:'2026-11-07',label:'Sat Nov 7',title:'Equal groups',detail:'Not rated yet',steered_by:'homework photo',rated:false}]},
   '/children/nova/observations/0':{index:0,label:'Fri Nov 6',lesson:'Lesson 3-2',photo:'data:image/jpeg;base64,eA==',items:[{n:0,prompt:'6 x 4',child_answer:'26',expected_answer:'24',status:'slip',confidence:0.95},{n:1,prompt:'3 x 4',child_answer:'?',expected_answer:'12',status:'needs_recheck',confidence:0.4}]}})
  let html=render(mod.HistoryView,{childId:'nova',open:()=>{}})
- for(const x of ['Homework photo','See what was read','Followed a homework photo','Rate'])assert.ok(html.includes(x),x)
+ for(const x of ['Homework photo','See what was read','Followed a homework photo','Rate','>Print<'])assert.ok(html.includes(x),x)
  html=render(mod.Readback,{childId:'nova',index:0})
  for(const x of ['Lesson 3-2','26','24','Small slip','Unclear','1 unclear reading','Fix this reading','data:image/jpeg'])assert.ok(html.includes(x),x)
 })
@@ -118,6 +118,6 @@ test('empty readings never claim confidence and source links keep exact provenan
 test('Today tells a parent the next action and offers all four main tabs',()=>{
  sdk.setResponses({'/today':{today:'2026-11-08',today_label:'Sun Nov 8',to_rate:1,children:[{id:'nova',name:'Nova',grade:'3',minutes:15,status:'needs_rating',action:'rate',packet_date:'2026-11-07',headline:'Rate Sat Nov 7’s sheet',class_unit:'Topic 3: Multiplication',steered_by:'homework photo',has_plan:true}]}})
  const html=render(mod.HomeworkPage)
- for(const x of ['Today','Class plan','Progress','History','Nova','Rate Sat Nov 7','Family','Add homework'])assert.ok(html.includes(x),x)
+ for(const x of ['Today','Class plan','Progress','History','Nova','Rate Sat Nov 7','Print sheet','Family','Add homework'])assert.ok(html.includes(x),x)
  assert.ok(!html.includes('mastery score'))
 })

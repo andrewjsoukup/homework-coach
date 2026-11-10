@@ -163,7 +163,10 @@ def _child_today(rt: Runtime, c: cfg.Child, t: str) -> dict[str, Any]:
         n = len([i for i in data["children"][c.id].get("items", []) if not i.get("optional")])
         return {**base, "status": "packet_ready", "packet_date": d,
                 "headline": f"{_human(d)}\u2019s sheet is ready \u00b7 {n} problems", "action": "open"}
-    if photo_age is None or photo_age > STALE_PHOTO_DAYS:
+    # A child who has never had a homework photo (no school homework yet) is not blocked on one when a
+    # class plan or earlier sheets already give practice something to follow.
+    no_photo_ok = photo_age is None and (bool(packets) or steer.get("source") == "curriculum plan")
+    if not no_photo_ok and (photo_age is None or photo_age > STALE_PHOTO_DAYS):
         return {**base, "status": "needs_photo", "packet_date": None,
                 "headline": "Add this week\u2019s homework photo" if obs else "Add a homework photo to start",
                 "action": "photo"}

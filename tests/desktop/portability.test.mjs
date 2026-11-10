@@ -93,6 +93,31 @@ test('documents are untouched; 15 MiB cap preserved',async()=>{
  const r=await P.prepareUpload(file('n.pdf','application/pdf',5e6,'%PDF'),{teacher:true,env:env(null)});assert.equal(r.resized,false);assert.equal(r.filename,'n.pdf')
  await assert.rejects(()=>P.prepareUpload(file('n.pdf','application/pdf',16*1024*1024),{teacher:true,env:env(null)}),/15 MB/)})
 
+const PNG='data:image/png;base64,eA=='
+const printEnv=(o={})=>{const log={printed:0,removed:0,appended:[],old:0}
+ const win={print(){log.printed++},focus(){},addEventListener(n,f){log.after=f},document:{images:[{decode:async()=>{}}]}}
+ const frame={style:{},setAttribute(){},remove(){log.removed++},contentWindow:o.noPrint?{}:win}
+ const doc={createElement:()=>frame,getElementById:()=>({remove(){log.old++}}),body:{appendChild(f){log.appended.push(f);queueMicrotask(()=>f.onload())}}}
+ return {log,frame,env:{document:doc}}}
+test('print loads every page at print width, prints only the sheet frame, and cleans up',async()=>{
+ const t=printEnv(),asked=[]
+ const r=await P.printPages({load:async n=>{asked.push(n);return {image:PNG,page:n,pages:3}},scopeNow:()=>'a',scope:'a',title:'2026-11-09 <nova>',env:t.env})
+ assert.deepEqual(asked,[0,1,2]);assert.deepEqual(r,{status:'printing',pages:3})
+ assert.equal(t.log.printed,1);assert.equal(t.log.old,1,'a leftover frame is removed first')
+ assert.equal((t.frame.srcdoc.match(/<img /g)||[]).length,3);assert.ok(!t.frame.srcdoc.includes('<nova>'))
+ t.log.after();assert.equal(t.log.removed,1)
+ assert.ok(P.PRINT_WIDTH>=1500&&jsx.includes('width=${PRINT_WIDTH}'))})
+test('print fails closed: no page image, unsafe image, no print door, or a changed profile',async()=>{
+ const base={scopeNow:()=>'a',scope:'a'}
+ await assert.rejects(P.printPages({...base,load:async()=>({image:null,pages:0,unavailable:true}),env:printEnv().env}),/Save sheet/)
+ await assert.rejects(P.printPages({...base,load:async()=>({image:'data:image/png;base64,eA=="><script>x</script>',pages:1}),env:printEnv().env}),/Save sheet/)
+ const np=printEnv({noPrint:true});await assert.rejects(P.printPages({...base,load:async()=>({image:PNG,pages:1}),env:np.env}),/Save sheet/);assert.equal(np.log.removed,1)
+ let scope='a';const t=printEnv()
+ await assert.rejects(P.printPages({load:async()=>{scope='b';return {image:PNG,pages:1}},scopeNow:()=>scope,scope:'a',env:t.env}),/Profile changed/)
+ assert.equal(t.log.appended.length,0)})
+test('Today, the rate desk, History and chat cards all offer Print',()=>{
+ assert.ok((jsx.match(/<PrintButton /g)||[]).length>=4)})
+
 test('touch targets are at least 44px and upload/jobs use the prepared helpers',()=>{
  assert.match(css,/\.hc-rating\{[^}]*min-height:44px/);assert.match(css,/\.hc-rating\{[^}]*min-width:44px/)
  assert.ok(jsx.includes('prepareUpload(file')&&jsx.includes('runJobScoped'))})

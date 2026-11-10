@@ -1,6 +1,6 @@
 [project]
 name = "homework-coach"
-version = "0.2.1"
+version = "0.2.2"
 description = "Hermes plugin: homework photo -> learning brief -> adaptive daily practice packet + parent key"
 requires-python = ">=3.11"
 license = { text = "MIT" }

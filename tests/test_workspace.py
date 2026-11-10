@@ -85,6 +85,32 @@ def test_packet_preview_renders_a_real_page_or_says_unavailable(tmp_path, family
         ws.packet_preview(rt, "2026-11-07", "nova", page=0, kind="../etc")
 
 
+def test_print_preview_is_larger_than_the_screen_preview(tmp_path, family_file):
+    rt = _rt(tmp_path, family_file)
+    from reportlab.pdfgen import canvas
+
+    pdf = tmp_path / "real.pdf"
+    c = canvas.Canvas(str(pdf))
+    c.drawString(72, 720, "Nova practice")
+    c.save()
+    _packet(rt, "2026-11-07", pdf=pdf.read_bytes())
+    screen = ws.packet_preview(rt, "2026-11-07", "nova", 0, "practice")
+    paper = ws.packet_preview(rt, "2026-11-07", "nova", 0, "practice", 1700)
+    assert paper["pages"] == 1 and len(paper["image"]) > len(screen["image"])
+
+
+def test_child_without_homework_photos_can_still_make_practice(tmp_path, family_file):
+    rt = _rt(tmp_path, family_file)
+    card = lambda: next(c for c in ws.today(rt)["children"] if c["id"] == "nova")  # noqa: E731
+    assert card()["status"] == "needs_photo"  # nothing to follow yet: ask for a first photo
+    cur.save_plan(rt.store, rt.family().child("nova"), curriculum="enVision", sources=[],
+                  units=[{"title": "Topic 3: Multiplication Facts", "start": "2020-01-01", "end": "2099-12-31",
+                          "skill": "multiplication"}])
+    assert card()["status"] in ("make_packet", "off")  # the class plan is enough; no photo demanded
+    _obs(rt, "2020-01-01")  # a family that does send photos is still nudged when theirs goes stale
+    assert card()["status"] == "needs_photo"
+
+
 def test_topic_1_never_matches_topic_10(tmp_path, family_file):
     rt = _rt(tmp_path, family_file)
     _plan(rt, rt.family())

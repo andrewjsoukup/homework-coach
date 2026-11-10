@@ -41,6 +41,7 @@ def test_unknown_packet_and_bad_preview_kind_are_clear_errors(client):
     c, _ = client
     assert c.get(P + "/packet/2026-11-07/nova").status_code == 400
     assert c.get(P + "/packet/2026-11-07/nova/preview?kind=../x").status_code == 400
+    assert c.get(P + "/packet/2026-11-07/nova/preview?width=99999").status_code == 422
 
 
 def test_slow_reads_run_as_jobs_and_report_failures(client):

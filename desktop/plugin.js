@@ -111,6 +111,57 @@ function makeSaver({ native, ctx, scopeNow: scopeNow2, scope, notify, env = {} }
   save.hasNative = typeof native === "function";
   return save;
 }
+var PRINT_WIDTH = 1700;
+var PRINT_FRAME_ID = "hc-print-frame";
+var PAGE_IMAGE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
+var NO_PRINT = "This sheet could not be opened for printing. Use Save sheet and print the PDF.";
+function printDocument(images, title = "Practice sheet") {
+  const safe = String(title).replace(/[<>&"']/g, "");
+  for (const src of images) if (!PAGE_IMAGE.test(src)) throw new Error(NO_PRINT);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${safe}</title><style>@page{margin:0}html,body{margin:0;padding:0;background:#fff}img{display:block;margin:0 auto;max-width:100%;max-height:99vh;break-after:page;page-break-after:always}img:last-child{break-after:auto;page-break-after:auto}</style></head><body>${images.map((s) => `<img src="${s}" alt="">`).join("")}</body></html>`;
+}
+async function printPages({ load, scopeNow: scopeNow2, scope, title, env = {} }) {
+  const stale = "Profile changed. Reopen this sheet in the new profile.";
+  const images = [];
+  let pages = 1;
+  for (let i = 0; i < pages; i++) {
+    guardScope(scopeNow2, scope, stale);
+    const r = await load(i);
+    guardScope(scopeNow2, scope, stale);
+    if (!r?.image) throw new Error(NO_PRINT);
+    images.push(r.image);
+    if (i === 0) pages = Math.max(1, Math.min(50, Number(r.pages) || 1));
+  }
+  const html = printDocument(images, title);
+  const doc = env.document || globalThis.document;
+  if (!doc?.createElement || !doc.body) throw new Error(NO_PRINT);
+  doc.getElementById?.(PRINT_FRAME_ID)?.remove?.();
+  const frame = doc.createElement("iframe");
+  frame.id = PRINT_FRAME_ID;
+  frame.setAttribute?.("aria-hidden", "true");
+  frame.tabIndex = -1;
+  frame.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;opacity:0";
+  await new Promise((res, rej) => {
+    const timer = (env.setTimeout || setTimeout)(() => rej(new Error(NO_PRINT)), 2e4);
+    frame.onload = () => {
+      (env.clearTimeout || clearTimeout)(timer);
+      res();
+    };
+    frame.srcdoc = html;
+    doc.body.appendChild(frame);
+  });
+  const win = frame.contentWindow;
+  if (typeof win?.print !== "function") {
+    frame.remove?.();
+    throw new Error(NO_PRINT);
+  }
+  await Promise.all(Array.from(win.document?.images || []).map((img) => img.decode?.().catch(() => {
+  })));
+  win.addEventListener?.("afterprint", () => frame.remove?.());
+  win.focus?.();
+  win.print();
+  return { status: "printing", pages: images.length };
+}
 async function runJobScoped({ request: request2, scopeNow: scopeNow2, expectedScope, path, body, onTick, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), maxPolls = 180 }) {
   const scope = expectedScope ?? scopeNow2(), fence = () => guardScope(scopeNow2, scope, "Profile changed while working. Reopen the previous profile to see the result.");
   fence();
@@ -336,6 +387,20 @@ async function saveFile(save, path, name, direct = false) {
     host.notify({ kind: "error", message: errorText(err) });
   }
 }
+function PrintButton({ ctx, date, childId, kind = "practice", children, ...rest }) {
+  const [busy, setBusy] = useState(false);
+  return /* @__PURE__ */ jsx(Button, { ...rest, disabled: busy, onClick: async () => {
+    const scope = scopeNow();
+    setBusy(true);
+    try {
+      await printPages({ load: (n) => request(ctx, `/packet/${e(date)}/${e(childId)}/preview?page=${n}&kind=${kind}&width=${PRINT_WIDTH}`, { timeoutMs: 6e4 }), scopeNow, scope, title: `${date} ${childId} ${kind === "key" ? "parent key" : "practice"}` });
+    } catch (err) {
+      host.notify({ kind: "error", message: errorText(err) });
+    } finally {
+      setBusy(false);
+    }
+  }, children: busy ? "Opening print\u2026" : children || "Print" });
+}
 async function draftInChat(ctx, prompt) {
   try {
     if (!ctx.runAction) throw new Error("Open a chat and paste this prompt.");
@@ -460,6 +525,7 @@ function TodayView({ ctx, data, open, onPlan }) {
           else if (c.action === "settings") familyLink();
           else open("upload", { childId: c.id });
         }, children: m.isPending ? "Making practice\u2026" : { rate: "Rate this sheet", open: "Open practice", generate: "Make practice", photo: "Add homework", settings: "Set practice days" }[c.action] || "Add homework" }),
+        c.packet_date && (c.action === "rate" || c.action === "open") && /* @__PURE__ */ jsx(PrintButton, { ctx, date: c.packet_date, childId: c.id, variant: "outline", children: "Print sheet" }),
         /* @__PURE__ */ jsxs(Button, { variant: "ghost", size: "sm", onClick: () => onPlan(c.id), children: [
           c.has_plan ? "See class plan" : "Set up class plan",
           " \u2192"
@@ -869,6 +935,7 @@ function RateSession({ ctx, packet: p, selectedItem, onDone, onSource }) {
         /* @__PURE__ */ jsx(Source, { packet: p, onSource: () => onSource(p) })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
+        /* @__PURE__ */ jsx(PrintButton, { ctx, date: p.date, childId: p.child.id, kind: keyView ? "key" : "practice", size: "sm", children: keyView ? "Print key" : "Print sheet" }),
         /* @__PURE__ */ jsx(Button, { variant: "outline", size: "sm", onClick: () => saveFile(p._save, p.practice_pdf, `${p.date}_${p.child.id}_practice.pdf`), children: "Save sheet" }),
         /* @__PURE__ */ jsx(Button, { variant: "ghost", size: "sm", onClick: () => saveFile(p._save, p.practice_pdf, `${p.date}_${p.child.id}_practice.pdf`, true), children: "Direct download" }),
         /* @__PURE__ */ jsx(Button, { variant: "outline", size: "sm", onClick: () => setKeyView(!keyView), children: keyView ? "Practice sheet" : "Parent key" }),
@@ -994,6 +1061,7 @@ function PacketCardData({ ctx, childId, date }) {
     /* @__PURE__ */ jsx(Source, { packet: p, onSource: () => goto(p.steered_by === "homework photo" ? "history" : "plan", { childId, ...p.steered_by === "homework photo" ? { observation: { childId, index: p.photo_index } } : {} }) }),
     /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
       /* @__PURE__ */ jsx(Button, { size: "sm", onClick: () => goto("today", { childId, packet: { date, childId } }), children: "Open sheet" }),
+      /* @__PURE__ */ jsx(PrintButton, { ctx, date, childId, size: "sm", variant: "outline", children: "Print" }),
       /* @__PURE__ */ jsx(Button, { size: "sm", variant: "outline", onClick: () => saveFile(p._save, p.practice_pdf, `${date}_${childId}_practice.pdf`), children: "Save" }),
       /* @__PURE__ */ jsx(Button, { size: "sm", variant: "outline", onClick: () => saveFile(p._save, p.key_pdf, `${date}_parent_key.pdf`), children: "Parent key" }),
       /* @__PURE__ */ jsx(Button, { size: "sm", variant: "secondary", onClick: () => goto("today", { childId, packet: { date, childId } }), children: "Rate \u2192" })
@@ -1126,7 +1194,10 @@ function HistoryView({ ctx, childId, open }) {
         /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: ev.detail }),
         ev.type === "practice" && ev.steered_by && /* @__PURE__ */ jsx("span", { className: "hc-pill", children: ev.steered_by === "homework photo" ? "Followed a homework photo" : ev.steered_by === "grade default" ? "Grade default" : `Class \xB7 ${ev.class_unit || "current unit"}` })
       ] }),
-      /* @__PURE__ */ jsx("div", { children: ev.type === "homework" ? /* @__PURE__ */ jsx(Button, { size: "sm", variant: "outline", onClick: () => open("observation", { index: ev.index }), children: "See what was read" }) : ev.type === "practice" ? /* @__PURE__ */ jsx(Button, { size: "sm", variant: "outline", onClick: () => open("packet", { date: ev.date }), children: ev.rated ? "Review" : "Rate" }) : null })
+      /* @__PURE__ */ jsx("div", { children: ev.type === "homework" ? /* @__PURE__ */ jsx(Button, { size: "sm", variant: "outline", onClick: () => open("observation", { index: ev.index }), children: "See what was read" }) : ev.type === "practice" ? /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
+        /* @__PURE__ */ jsx(PrintButton, { ctx, date: ev.date, childId, size: "sm", variant: "outline", children: "Print" }),
+        /* @__PURE__ */ jsx(Button, { size: "sm", variant: "ghost", onClick: () => open("packet", { date: ev.date }), children: ev.rated ? "Review" : "Rate" })
+      ] }) : null })
     ] }, i)) }) : /* @__PURE__ */ jsx(Empty, { title: "Nothing yet", children: "Add a homework photo to get started." })
   ] }) });
 }

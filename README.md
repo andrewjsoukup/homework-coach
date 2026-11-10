@@ -11,7 +11,7 @@ packet: a printable PDF for each child plus a separate parent answer key. Rate e
 **I** (independent), **S** (supported) or **N** (not yet), and the next packet adjusts
 one step at a time.
 
-> Status: **0.2.1**. Elementary math (counting, place value, add/sub, multiplication,
+> Status: **0.2.2**. Elementary math (counting, place value, add/sub, multiplication,
 > division, fractions; 31 task formats). See [SPEC.md](SPEC.md).
 
 ![Homework Coach: a tutor and a student working through practice problems](docs/screenshots/banner.png)

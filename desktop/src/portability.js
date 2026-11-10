@@ -59,6 +59,48 @@ export function makeSaver({native,ctx,scopeNow,scope,notify,env={}}){
  return save
 }
 
+// Print the real sheet: the backend's page renders of the packet PDF go into a hidden frame and only
+// that frame is printed, so the parent gets the system print dialog without saving a file first.
+export const PRINT_WIDTH = 1700
+const PRINT_FRAME_ID = 'hc-print-frame'
+const PAGE_IMAGE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/
+const NO_PRINT = 'This sheet could not be opened for printing. Use Save sheet and print the PDF.'
+export function printDocument(images,title='Practice sheet'){
+ const safe=String(title).replace(/[<>&"']/g,'')
+ for(const src of images)if(!PAGE_IMAGE.test(src))throw new Error(NO_PRINT)
+ return `<!doctype html><html><head><meta charset="utf-8"><title>${safe}</title><style>@page{margin:0}html,body{margin:0;padding:0;background:#fff}`+
+  `img{display:block;margin:0 auto;max-width:100%;max-height:99vh;break-after:page;page-break-after:always}`+
+  `img:last-child{break-after:auto;page-break-after:auto}</style></head><body>${images.map(s=>`<img src="${s}" alt="">`).join('')}</body></html>`
+}
+export async function printPages({load,scopeNow,scope,title,env={}}){
+ const stale='Profile changed. Reopen this sheet in the new profile.'
+ const images=[];let pages=1
+ for(let i=0;i<pages;i++){
+  guardScope(scopeNow,scope,stale)
+  const r=await load(i);guardScope(scopeNow,scope,stale)
+  if(!r?.image)throw new Error(NO_PRINT)
+  images.push(r.image);if(i===0)pages=Math.max(1,Math.min(50,Number(r.pages)||1))
+ }
+ const html=printDocument(images,title)
+ const doc=env.document||globalThis.document
+ if(!doc?.createElement||!doc.body)throw new Error(NO_PRINT)
+ doc.getElementById?.(PRINT_FRAME_ID)?.remove?.()
+ const frame=doc.createElement('iframe')
+ frame.id=PRINT_FRAME_ID;frame.setAttribute?.('aria-hidden','true');frame.tabIndex=-1
+ frame.style.cssText='position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;opacity:0'
+ await new Promise((res,rej)=>{
+  const timer=(env.setTimeout||setTimeout)(()=>rej(new Error(NO_PRINT)),20000)
+  frame.onload=()=>{(env.clearTimeout||clearTimeout)(timer);res()}
+  frame.srcdoc=html;doc.body.appendChild(frame)
+ })
+ const win=frame.contentWindow
+ if(typeof win?.print!=='function'){frame.remove?.();throw new Error(NO_PRINT)}
+ await Promise.all(Array.from(win.document?.images||[]).map(img=>img.decode?.().catch(()=>{})))
+ win.addEventListener?.('afterprint',()=>frame.remove?.())
+ win.focus?.();win.print()
+ return {status:'printing',pages:images.length}
+}
+
 // Poll a background job without letting a profile/connection switch leak into the new view.
 export async function runJobScoped({request,scopeNow,expectedScope,path,body,onTick,sleep=ms=>new Promise(r=>setTimeout(r,ms)),maxPolls=180}){
  const scope=expectedScope??scopeNow(),fence=()=>guardScope(scopeNow,scope,'Profile changed while working. Reopen the previous profile to see the result.')
