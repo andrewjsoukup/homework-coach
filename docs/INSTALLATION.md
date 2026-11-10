@@ -64,6 +64,10 @@ verified; chat tools depend on which channels/tools you have enabled.
 
 ## Using a second laptop (UI only)
 
+Download the [0.2.0 Desktop UI-only ZIP](https://github.com/andrewjsoukup/homework-coach/releases/download/v0.2.0/Homework-Coach-Desktop-UI-0.2.0.zip)
+when your backend is also on 0.2.0. The [release page](https://github.com/andrewjsoukup/homework-coach/releases/tag/v0.2.0)
+also provides the matching public source archive.
+
 Do **not** install a second backend or copy `family.yaml`, packets, photos or credentials.
 Instead:
 1. Get the UI-only ZIP that matches your backend's plugin version (same version).

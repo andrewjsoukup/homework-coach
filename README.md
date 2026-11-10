@@ -56,8 +56,8 @@ headless setups, plus adding a second laptop, are in
 [docs/PORTABILITY.md](docs/PORTABILITY.md).
 
 ```bash
-hermes plugins install homework-coach --enable      # from the plugin catalog, once listed
-# or: hermes plugins install https://github.com/andrewjsoukup/homework-coach --enable
+hermes plugins install https://github.com/andrewjsoukup/homework-coach --enable
+# After catalog admission: hermes plugins install homework-coach --enable
 ```
 
 A standard **Desktop-app** install provides both the backend and the client-local UI.

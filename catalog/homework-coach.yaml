@@ -1,36 +1,44 @@
 name: homework-coach
 repo: https://github.com/andrewjsoukup/homework-coach
-sha: "b0c5663a438e23a36fa4c117d1489c06bb755eb4"
+sha: 43c9b7b2dafe2d5000507b96a9f4f527b022a5e2
 title: Homework Coach
-description: 'Photograph a child''s homework and Homework Coach records the skills, task formats
-  and slips in a per-child learning brief, then builds a fresh, verified daily practice packet:
-  a printable PDF per child plus a separate parent answer key. Parents rate items I/S/N and the
-  next packet adapts one step at a time. Elementary math (31 task formats), with an Automation
-  Blueprint for scheduled delivery to chat and a Desktop panel. Photos go to the user''s
-  configured model provider through ctx.llm; all other data stays in plugin-data.'
+description: Homework photos and teacher updates become checked daily math practice PDFs and a separate
+  parent key. Parent I/S/N feedback guides difficulty. Includes a class plan, read-back corrections,
+  progress/history, a scheduling blueprint and a Desktop workspace. Data stays on the selected Hermes
+  backend; photos and teacher content use the configured model provider. JSON uploads and direct
+  downloads support remote clients.
 maintainer: andrewjsoukup
 tier: community
 category: tools
-requires_hermes: ">=0.22.5"
-version: "0.1.0"
+requires_hermes: '>=0.22.5'
+version: "0.2.0"
 docs_url: https://github.com/andrewjsoukup/homework-coach#readme
-image: https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/banner.png
+image: https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/banner.png
 screenshots:
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/01-homework-photo.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/02-child-packet-nova.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/03-parent-key.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/05-adapted-packet-nova-wed.png
-  - https://raw.githubusercontent.com/andrewjsoukup/homework-coach/b0c5663a438e23a36fa4c117d1489c06bb755eb4/docs/screenshots/06-desktop-panel.png
+- https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/01-homework-photo.png
+- https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/02-child-packet-nova.png
+- https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/03-parent-key.png
+- https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/05-adapted-packet-nova-wed.png
+- https://raw.githubusercontent.com/andrewjsoukup/homework-coach/43c9b7b2dafe2d5000507b96a9f4f527b022a5e2/docs/screenshots/06-desktop-panel.png
 readme: true
-platforms: []
+platforms:
+- linux
+- macos
+- windows
 known_issues:
-  - 'Hermes Desktop v0.22.7 rejects photo uploads to OAuth-gated remote gateways before plugin intake.'
+- Native phone-app panels are unverified; use a supported Desktop/browser renderer or enabled chat
+  tools.
+- Cloud deployments need persistent profile storage and one long-lived plugin host; stateless or
+  round-robin multi-worker hosting is not supported.
 capabilities:
   provides_tools:
-    - homework_coach_intake
-    - homework_coach_generate_packet
-    - homework_coach_record_feedback
-    - homework_coach_status
+  - homework_coach_intake
+  - homework_coach_generate_packet
+  - homework_coach_record_feedback
+  - homework_coach_status
+  - homework_coach_progress
+  - homework_coach_set_curriculum
+  - homework_coach_add_material
   provides_hooks: []
   provides_middleware: []
   requires_env: []
