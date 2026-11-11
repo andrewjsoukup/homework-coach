@@ -36,16 +36,21 @@ def _packet(rt: Runtime, day: str) -> dict:
 
 
 def test_off_by_default_and_settings_validate(rt):
-    assert daily.settings(rt.store) == {"enabled": False, "writer": "builtin"}
+    assert daily.settings(rt.store) == {"enabled": False, "writer": "builtin", "guidance": {}}
     assert daily.run_due(rt, MON_LATE) == {"ran": False, "reason": "off"}
     assert not rt.store.packet_dir("2026-11-02", create=False).exists()
-    assert daily.save_settings(rt.store, {"enabled": True, "writer": "model"}) == {"enabled": True, "writer": "model"}
-    assert daily.save_settings(rt.store, {"writer": "builtin"}) == {"enabled": True, "writer": "builtin"}
-    for bad in ({"enabled": "yes"}, {"writer": "gpt"}):
+    assert daily.save_settings(rt.store, {"enabled": True, "writer": "model"}) == {
+        "enabled": True, "writer": "model", "guidance": {}}
+    assert daily.save_settings(rt.store, {"writer": "builtin"}) == {"enabled": True, "writer": "builtin", "guidance": {}}
+    long = "two-step   stories " * 80
+    got = daily.save_settings(rt.store, {"guidance": {"nova": long, "pip": "  "}})["guidance"]
+    assert set(got) == {"nova"} and len(got["nova"]) == daily.GUIDANCE_MAX and "  " not in got["nova"]
+    assert daily.save_settings(rt.store, {"guidance": {"nova": ""}})["guidance"] == {}  # blank clears it
+    for bad in ({"enabled": "yes"}, {"writer": "gpt"}, {"guidance": "x"}, {"guidance": {"nova": 3}}):
         with pytest.raises(ValueError):
             daily.save_settings(rt.store, bad)
     (rt.store.root / daily.SETTINGS_FILE).write_text("not json", encoding="utf-8")
-    assert daily.settings(rt.store) == {"enabled": False, "writer": "builtin"}  # a damaged file means off
+    assert daily.settings(rt.store) == {"enabled": False, "writer": "builtin", "guidance": {}}  # damaged file = off
 
 
 def test_due_follows_each_childs_days_and_time(rt):
@@ -213,7 +218,7 @@ def test_slash_daily_turns_it_on_and_picks_the_writer(fake_ctx, tmp_path, monkey
     assert "off" in cmd("daily")
     on = cmd("daily on model")
     assert "Daily sheets are on" in on and "your model" in on and "America/Chicago" in on
-    assert daily.settings(Store(root=tmp_path / "data")) == {"enabled": True, "writer": "model"}
+    assert daily.settings(Store(root=tmp_path / "data")) == {"enabled": True, "writer": "model", "guidance": {}}
     assert "off" in cmd("daily off") and "Usage" in cmd("daily sometimes")
 
 

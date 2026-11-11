@@ -701,7 +701,8 @@ def packet_detail(rt: Runtime, day: str, child_id: str) -> dict[str, Any]:
         items.append({"id": it.id, "prompt": it.prompt, "display": it.display, "picture": visual_description(it),
                       "visual": it.visual_inventory,
                       "hint": it.hint, "answer": it.answer, "worked": it.worked_solution, "format": it.format,
-                      "format_label": catalog.FORMATS[it.format].label if it.format in catalog.FORMATS else it.format,
+                      "format_label": catalog.FORMATS[it.format].label if it.format in catalog.FORMATS
+                      else "Written for this sheet" if it.format == "written" else it.format,
                       "skill": it.skill, "skill_label": catalog.SKILLS.get(it.skill, it.skill), "role": it.role,
                       "optional": it.optional,
                       "tip": raw.get("parent_tip") or tip_for(it.format, unit),
@@ -732,6 +733,7 @@ def packet_detail(rt: Runtime, day: str, child_id: str) -> dict[str, Any]:
             "photo_provenance": provenance,
             "written_by": c.get("written_by") or "builtin", "writer_note": c.get("writer_note") or "",
             "writer_fallback": c.get("writer_fallback") or "",
+            "writer_rejected": list(c.get("writer_rejected") or []),
             "unit_goals": c.get("unit_goals", []), "verified": (data.get("verification") or {}).get("ok"),
             "items": items, "rated": bool(ratings), "progression": lines,
             "practice_pdf": str(pdir / files[child_id]) if child_id in files else None,
@@ -954,13 +956,19 @@ def daily_settings(rt: Runtime) -> dict[str, Any]:
     """Daily sheets switch, who writes the sheet, and the last automatic run."""
     fam = _family(rt)
     return {**daily.status(rt), "timezone": fam.timezone,
+            "children": [{"id": c.id, "name": c.name} for c in fam.children],
             "times": sorted({c.schedule.time for c in fam.children} or {fam.schedule.time})}
 
 
 def update_daily(rt: Runtime, body: dict[str, Any]) -> dict[str, Any]:
-    change = {k: body[k] for k in ("enabled", "writer") if k in body}
+    change = {k: body[k] for k in ("enabled", "writer", "guidance") if k in body}
     if not change:
         raise PanelError("nothing to change")
+    if isinstance(change.get("guidance"), dict):
+        known = {c.id for c in _family(rt).children}
+        unknown = sorted(set(change["guidance"]) - known)
+        if unknown:
+            raise PanelError(f"unknown child: {', '.join(map(str, unknown))}")
     try:
         daily.save_settings(rt.store, change)
     except ValueError as e:

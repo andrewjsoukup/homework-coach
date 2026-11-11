@@ -42,6 +42,7 @@ def test_other_registrations(fake_ctx):
     assert "homework" in fake_ctx.commands
     assert fake_ctx.aux_tasks[plugin.AUX_TASK]["inherit_from"] == "vision"
     assert "sheet writer" in fake_ctx.aux_tasks["homework_writer"]["display_name"]
+    assert "double-checks" in fake_ctx.aux_tasks["homework_writer"]["description"]
     assert "inherit_from" not in fake_ctx.aux_tasks["homework_writer"]  # follows the parent's main model
     assert "workflow" in fake_ctx.skills and fake_ctx.skills["workflow"].is_file()
     bp = fake_ctx.blueprints["daily-packet"]

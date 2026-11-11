@@ -370,7 +370,9 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
         lines = wrap(it.prompt, FONT, size, width)
         hint_lines = wrap(f"Hint: {it.hint}", FONT, size - 3, width) if it.hint else []
         vh = visual_height(it, p.dot_r)
-        disp_h = (size + 8) if it.display and it.spec.get("kind") != "select" else len(it.display) * (size + 6)
+        listed = it.spec.get("kind") in ("select", "free")  # choices one per line
+        disp_h = len(it.display) * (size + 6) + (size + 2 if it.spec.get("kind") == "free" and it.display else 0) \
+            if listed else (size + 8) if it.display else 0
         work_h = it.work_lines * (size + 12) + 2 * size + 16
         block = (len(lines) * (size + 4) + len(hint_lines) * (size + 1) + (vh + 10 if vh else 0)
                  + disp_h + work_h + 18)
@@ -392,7 +394,10 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
             drawn[it.id] = draw_visual(p, it, tx, p.y)
             p.y -= vh + 6
         if it.display:
-            if it.spec.get("kind") == "select":
+            if listed:
+                if it.spec.get("kind") == "free":
+                    p.text(tx, p.y - (size - 2), "Circle one:", FONT, size - 2, GREY)
+                    p.y -= size + 2
                 for d in it.display:
                     p.text(tx + 10, p.y - size, d, FONT, size)
                     p.y -= size + 6
@@ -403,7 +408,8 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
                     p.text(cx, p.y - size, d, BOLD, size)
                     cx += stringWidth(d, BOLD, size) + 50
                 p.y -= size + 8
-        if not it.display and "___" not in it.prompt and it.format != "shade_fraction":
+        if not it.display and "___" not in it.prompt and it.format != "shade_fraction" \
+                and it.spec.get("type") != "open":
             p.y -= 6
             lab = "Answer:"
             p.text(tx, p.y - size, lab, BOLD, size)
@@ -414,7 +420,7 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
             p.c.rect(bx, p.y - size - 6, bw, size + 10)
             p.c.setStrokeGray(0)
             p.y -= size + 10
-        if "word_problem" in it.format:
+        if "word_problem" in it.format or it.spec.get("box"):
             bh = it.work_lines * (size + 12)
             p.y -= 6
             p.box_ok(tx, p.y - bh, W - MARGIN - tx, bh)

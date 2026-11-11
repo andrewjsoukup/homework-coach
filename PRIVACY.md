@@ -39,13 +39,16 @@ cron jobs you created from the blueprint are yours: remove them with `hermes cro
    local vision model. With the built-in writer, packet generation and answer checking are
    deterministic local code and send nothing.
 2. **Model-written sheets, only if you choose "Your model".** Each time a sheet is made, the
-   child's grade, school program, class unit and goals, the latest homework reading
-   (problems, what the child wrote, expected answers), your recent ratings and notes, and
-   recent sheet problems go to your configured provider (or the model you assign to the
-   `homework_writer` auxiliary task). The child's name and family name are left out, unless
-   they appear in a note or lesson title. The model only chooses problem types and numbers;
-   answers are computed and checked by local code. With Daily sheets on, this happens once
-   per child per practice day without anyone opening the app.
+   child's grade, school program, class unit and goals, the learning brief, the latest
+   homework reading (problems, what the child wrote, expected answers), your recent ratings
+   and notes, what you asked the sheets to work on, and recent sheet problems go to your
+   configured provider (or the model you assign to the `homework_writer` auxiliary task).
+   The children's names and file paths are removed from that text before it is sent, and
+   the family name is never included; other details you typed in a note are sent as
+   written. The model writes the problems. A second call sends the written problems back
+   to the same provider to be solved blind. Number answers are recomputed by local code.
+   With Daily sheets on, this happens on each child's practice days without anyone opening
+   the app.
 3. **Chat results enter the conversation.** Output returned by the tools in ordinary chat
    becomes part of that conversation and your channel's/provider's history.
 4. **Packets go wherever you deliver them.** If you schedule the

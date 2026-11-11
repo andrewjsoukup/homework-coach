@@ -39,7 +39,8 @@ Goals
 - Programmatic verification: every answer computed, every drawn count matches
   its inventory, no answers on child pages, render/bounds check.
 - Daily sheets: opt-in, made by the plugin's own once-a-minute check and on opening the
-  workspace; no cron job. Built-in writer or the parent's model chooses the problems.
+  workspace; no cron job. Built-in writer, or the parent's model writes the problems
+  (answers recomputed locally, each problem solved blind by a second model pass).
 - Optional chat delivery via a Hermes Automation Blueprint (user creates the job).
 - Desktop panel: children, skill progress, recent packets, upload photo, record
   feedback.

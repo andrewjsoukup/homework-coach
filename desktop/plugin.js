@@ -496,7 +496,7 @@ function TodayView({ ctx, data, open, onPlan }) {
       /* @__PURE__ */ jsx("h2", { children: data.to_rate ? `${data.to_rate} ${data.to_rate === 1 ? "sheet is" : "sheets are"} waiting for your feedback.` : "Small steps, built around school." }),
       /* @__PURE__ */ jsx("p", { className: "hc-muted", children: "A photo tells us what class is doing. Your feedback tells us what to practise next." }),
       data.daily && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
-        data.daily.making ? "Making today\u2019s sheet now. It will appear here within a minute." : data.daily.enabled ? `Daily sheets are on: a new sheet is made at ${data.schedule?.time || "the practice time"} on practice days${data.daily.writer === "model" ? ", with problems chosen by your model" : ""}.` : /* @__PURE__ */ jsxs(Fragment, { children: [
+        data.daily.making ? "Making today\u2019s sheet now. It will appear here within a minute." : data.daily.enabled ? `Daily sheets are on: a new sheet is made at ${data.schedule?.time || "the practice time"} on practice days${data.daily.writer === "model" ? ", written by your model" : ""}.` : /* @__PURE__ */ jsxs(Fragment, { children: [
           "Daily sheets are off. ",
           /* @__PURE__ */ jsx("button", { type: "button", className: "hc-inline-link", onClick: familyLink, children: "Turn them on in Family & settings" })
         ] }),
@@ -882,12 +882,12 @@ function DailyForm({ ctx }) {
   return /* @__PURE__ */ jsx(State, { q, children: (d) => /* @__PURE__ */ jsx(DailyFields, { ctx, d }, `${d.enabled}:${d.writer}`) });
 }
 function DailyFields({ ctx, d }) {
-  const [enabled, setEnabled] = useState(!!d.enabled), [writer, setWriter] = useState(d.writer || "builtin"), [saved, setSaved] = useState(false);
+  const [enabled, setEnabled] = useState(!!d.enabled), [writer, setWriter] = useState(d.writer || "builtin"), [guide, setGuide] = useState(d.guidance || {}), [saved, setSaved] = useState(false);
   const m = useWrite(ctx, () => setSaved(true));
   const last = d.last;
   return /* @__PURE__ */ jsxs("form", { className: "hc-card hc-stack", onSubmit: (ev) => {
     ev.preventDefault();
-    m.mutate({ path: "/daily", body: { enabled, writer } });
+    m.mutate({ path: "/daily", body: { enabled, writer, guidance: guide } });
   }, children: [
     /* @__PURE__ */ jsxs("div", { children: [
       /* @__PURE__ */ jsx("h2", { children: "Daily sheets" }),
@@ -909,9 +909,13 @@ function DailyFields({ ctx, d }) {
       setSaved(false);
     }, children: [
       /* @__PURE__ */ jsx("option", { value: "builtin", children: "Built-in writer (no model, instant)" }),
-      /* @__PURE__ */ jsx("option", { value: "model", children: "Your model (about one model call per child per day)" })
+      /* @__PURE__ */ jsx("option", { value: "model", children: "Your model writes the problems (two or more model calls per child per day)" })
     ] }) }),
-    writer === "model" && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Your model chooses each problem's type and numbers from the child's latest homework reading, class unit and your ratings. Homework Coach still builds the problems, works out every answer itself and checks the page. If the model is unavailable, the built-in writer makes that day's sheet. This sends the child's grade, school program, class unit, latest homework reading and your recent ratings and notes to your configured model provider. The child's name is not included unless it appears in a note or lesson title." }),
+    writer === "model" && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Your model writes the problems itself, aimed at what the latest homework, the class unit, your ratings and your notes below show is needed. Nothing it writes is printed on trust: Homework Coach recomputes every number answer, a second model pass solves each problem seeing only what the child sees, and a problem that fails is rewritten once and then replaced by a built-in one. If the model is unavailable, the built-in writer makes that day's sheet. This sends the child's grade, school program, class unit, learning brief, latest homework reading, recent sheets, your ratings and your notes to your configured model provider. The children's names are removed." }),
+    writer === "model" && (d.children || []).map((c) => /* @__PURE__ */ jsx(Field, { label: `What should ${c.name}'s sheets work on? (optional)`, wide: true, children: /* @__PURE__ */ jsx("textarea", { className: "hc-select", rows: 3, maxLength: 600, value: guide[c.id] || "", placeholder: "For example: two-step story problems with a hidden question. Rushes subtraction with regrouping. Loves dinosaurs.", onChange: (ev) => {
+      setGuide({ ...guide, [c.id]: ev.target.value });
+      setSaved(false);
+    } }) }, c.id)),
     writer === "model" && d.model_ready === false && /* @__PURE__ */ jsx("p", { className: "hc-small", role: "alert", children: "This Hermes does not give plugins a model connection, so the built-in writer will be used." }),
     d.enabled && d.timer_alive === false && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Hermes is not running the once-a-minute check right now, so sheets are made when you open Homework Coach. Keeping the Hermes gateway running makes them at the practice time." }),
     last && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
@@ -993,9 +997,11 @@ function RateSession({ ctx, packet: p, selectedItem, onDone, onSource }) {
         ] }),
         /* @__PURE__ */ jsx(Source, { packet: p, onSource: () => onSource(p) }),
         p.written_by === "model" && /* @__PURE__ */ jsxs("p", { className: "hc-small hc-muted", children: [
-          "Problems chosen by your model",
-          p.writer_note ? `: ${p.writer_note}` : "."
-        ] })
+          "Problems written by your model",
+          p.writer_note ? `: ${p.writer_note}` : ".",
+          p.writer_rejected?.length ? ` ${p.writer_rejected.length} written ${p.writer_rejected.length === 1 ? "problem" : "problems"} failed the answer check and ${p.writer_rejected.length === 1 ? "was" : "were"} replaced by the built-in writer.` : ""
+        ] }),
+        p.written_by !== "model" && p.writer_fallback && /* @__PURE__ */ jsx("p", { className: "hc-small hc-muted", children: "Your model was not available for this sheet, so the built-in writer made it." })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "hc-row", children: [
         /* @__PURE__ */ jsx(PrintButton, { ctx, date: p.date, childId: p.child.id, kind: keyView ? "key" : "practice", size: "sm", children: keyView ? "Print key" : "Print sheet" }),

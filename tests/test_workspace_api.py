@@ -86,6 +86,10 @@ def test_daily_routes_and_catch_up_when_the_workspace_is_opened(client, monkeypa
     assert c.post(P + "/daily", json={}).status_code == 400
     on = c.post(P + "/daily", json={"enabled": True}).json()
     assert on["ok"] and on["enabled"] is True and on["writer"] == "builtin"
+    assert [k["id"] for k in on["children"]] == ["nova", "pip"]
+    assert c.post(P + "/daily", json={"guidance": {"nobody": "x"}}).status_code == 400
+    assert c.post(P + "/daily", json={"guidance": {"nova": "two-step stories"}}).json()["guidance"] == {
+        "nova": "two-step stories"}
 
     assert c.get(P + "/today").json()["daily"]["making"] is True  # practice time passed, no sheet yet
     made = store.root / "packets" / "2026-11-02" / "packet.json"

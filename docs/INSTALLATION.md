@@ -87,6 +87,9 @@ Instead:
   that already exists for the day is never rebuilt, so the two never produce duplicates.
   Keep the job only if you want the PDFs sent to a chat; otherwise remove it with
   `hermes cron`.
+- "Who writes the sheet" starts on the built-in writer. Choosing your model lets it write the
+  problems; that sends the child's learning context to your model provider (see
+  [PRIVACY.md](../PRIVACY.md)).
 - Daily sheets needs a long-running Hermes (gateway or Desktop backend) to make sheets at
   the practice time. Otherwise the sheet is made when you open Homework Coach that day.
 

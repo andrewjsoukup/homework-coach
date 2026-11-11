@@ -16,7 +16,9 @@ from typing import Any, Iterable
 from . import arith
 from .models import PacketItem
 
-CHOICE_ANSWERS = {"A", "B", "True", "False", "<", ">", "="}
+CHOICE_ANSWERS = {"A", "B", "C", "D", "True", "False", "<", ">", "="}
+FREE_VISUALS = {"objects", "ten_frame", "two_groups", "array", "groups", "share", "bar", "bar_equal",
+                "fraction_bar", "set", "number_line", "base_ten"}
 
 
 def _expected(item: PacketItem) -> str:
@@ -73,6 +75,20 @@ def _expected(item: PacketItem) -> str:
         if not (0 < num < den):
             raise AssertionError("fraction must be proper and non-zero")
         return f"{num}/{den}" if item.format != "shade_fraction" else f"{num} of {den} parts shaded"
+    if k == "free":  # a problem the parent's model wrote (see writer.py)
+        t = s.get("type")
+        if t == "number":
+            return arith.fmt(arith.evaluate(s["check"]))  # the printed answer is recomputed, never trusted
+        if t == "choice":
+            labels = [d.split(".")[0].strip() for d in item.display]
+            if labels != list(s.get("labels") or []) or not 2 <= len(labels) <= 4 or item.answer not in labels:
+                raise AssertionError("answer is not one of the printed choices")
+            return item.answer
+        if t == "open":
+            if item.answer != "Answers vary" or not item.worked_solution.startswith("Look for:"):
+                raise AssertionError("an explain problem needs a 'Look for' line for the parent")
+            return item.answer
+        raise AssertionError(f"unknown written answer type {t!r}")
     raise AssertionError(f"unknown spec kind {k!r}")
 
 
@@ -93,6 +109,8 @@ def _check_visual(item: PacketItem) -> list[str]:
     t = v.get("type")
     if not t:
         return errs
+    if s.get("kind") == "free":  # the picture illustrates the problem; its numbers were range-checked
+        return errs if t in FREE_VISUALS else [f"unknown visual {t!r}"]
     ans = item.answer
     try:
         if t == "objects":

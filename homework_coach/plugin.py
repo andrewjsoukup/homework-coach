@@ -105,9 +105,9 @@ def register(ctx: Any) -> None:
     ctx.register_auxiliary_task(AUX_TASK, display_name="Homework Coach vision",
                                 description="Reads homework photos for Homework Coach.", inherit_from="vision")
     ctx.register_auxiliary_task(writer.AUX_TASK, display_name="Homework Coach sheet writer",
-                                description=("Chooses the problems for practice sheets when 'Who writes the "
-                                             "sheet' is set to your model. Uses your main model unless you "
-                                             "pick another here."))
+                                description=("Writes and double-checks the problems for practice sheets when "
+                                             "'Who writes the sheet' is set to your model. Uses your main "
+                                             "model unless you pick another here."))
 
     # Daily sheets: an in-process check (no Hermes cron job). It does nothing until a parent turns
     # Daily sheets on in the plugin's settings; unloading the plugin stops it.

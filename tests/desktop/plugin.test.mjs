@@ -126,7 +126,7 @@ test('Today leads with today\'s sheet, keeps rating as a second ask and reports 
  const child={id:'nova',name:'Nova',grade:'3',minutes:15,status:'packet_ready',action:'open',packet_date:'2026-11-10',headline:'Tue Nov 10’s sheet is ready · 6 problems',rate_date:'2026-11-09',rate_label:'Mon Nov 9',has_plan:true}
  sdk.setResponses({'/today':{today:'2026-11-10',today_label:'Tue Nov 10',to_rate:1,schedule:{days:['mon','tue'],time:'09:00'},daily:{enabled:true,writer:'model',last:null},children:[child]}})
  let html=render(mod.HomeworkPage)
- for(const x of ['Tue Nov 10’s sheet is ready','Open practice','Print sheet','Rate Mon Nov 9’s sheet','Daily sheets are on','09:00','chosen by your model'])assert.ok(html.includes(x),x)
+ for(const x of ['Tue Nov 10’s sheet is ready','Open practice','Print sheet','Rate Mon Nov 9’s sheet','Daily sheets are on','09:00','written by your model'])assert.ok(html.includes(x),x)
  assert.ok(!html.includes('\\u2019'),'no raw escape sequences on screen')
  sdk.setResponses({'/today':{today:'2026-11-10',today_label:'Tue Nov 10',to_rate:0,schedule:{time:'09:00'},daily:{enabled:false,writer:'builtin',last:null},children:[{...child,rate_date:undefined}]}})
  html=render(mod.HomeworkPage)
@@ -145,9 +145,9 @@ test('Daily sheets settings offer the switch, both writers and plain consequence
  let html=render(mod.DailyForm)
  for(const x of ['Daily sheets','Make a new sheet every practice day','08:30 / 09:00','No separate job is needed','Who writes the sheet','Built-in writer','Your model','Save daily sheets'])assert.ok(html.includes(x),x)
  assert.ok(!html.includes('configured model provider'),'the model notice appears only when the model is chosen')
- sdk.setResponses({'/daily':{enabled:true,writer:'model',model_ready:false,timer_alive:false,last:{date:'2026-11-10',status:'ok'},times:['09:00'],timezone:'America/Chicago'}})
+ sdk.setResponses({'/daily':{enabled:true,writer:'model',model_ready:false,timer_alive:false,last:{date:'2026-11-10',status:'ok'},times:['09:00'],timezone:'America/Chicago',children:[{id:'nova',name:'Nova'}],guidance:{nova:'two-step stories with a hidden question'}}})
  html=render(mod.DailyForm)
- for(const x of ['works out every answer itself','the built-in writer makes that day','configured model provider','does not give plugins a model connection','when you open Homework Coach','Last automatic run: 2026-11-10','sheet made'])assert.ok(html.includes(x),x)
+ for(const x of ['writes the problems itself','recomputes every number answer','a second model pass solves each problem','names are removed','What should Nova&#x27;s sheets work on?','two-step stories with a hidden question','the built-in writer makes that day','configured model provider','does not give plugins a model connection','when you open Homework Coach','Last automatic run: 2026-11-10','sheet made'])assert.ok(html.includes(x),x)
  assert.match(html,/<input type="checkbox"[^>]*checked/)
  sdk.setResponses({'/family':{family_id:'maple',timezone:'America/Chicago',schedule:{days:['mon'],time:'09:00'},grades:['3'],children:[],archived:[]},'/daily':{enabled:false,writer:'builtin',times:['09:00']}})
  for(const page of [render(mod.FamilyPage),render(mod.FamilyPage,{scheduleOnly:true})]){assert.ok(page.includes('Daily sheets'));assert.ok(!page.includes('Automatic delivery requires'))}
@@ -157,7 +157,9 @@ test('the rate desk says when the model chose the problems',()=>{
  const p={date:'2026-11-10',label:'Tue Nov 10',child:{id:'nova',name:'Nova'},focus:'Arrays',steered_by:'homework photo',items:[{id:'1',prompt:'3 rows of 4',answer:'12',worked:'',format:'array_to_equation'}],written_by:'model',writer_note:'Arrays, after a slip on 6 x 4.'}
  sdk.setResponses({'/packet/2026-11-10/nova':p})
  const html=render(mod.RateDesk,{childId:'nova',date:'2026-11-10',onDone:()=>{},onSource:()=>{}})
- assert.ok(html.includes('Problems chosen by your model: Arrays, after a slip on 6 x 4.'))
+ assert.ok(html.includes('Problems written by your model: Arrays, after a slip on 6 x 4.'))
+ sdk.setResponses({'/packet/2026-11-10/nova':{...p,writer_rejected:['problem 2: second check chose B, not A']}})
+ assert.ok(render(mod.RateDesk,{childId:'nova',date:'2026-11-10',onDone:()=>{},onSource:()=>{}}).includes('1 written problem failed the answer check and was replaced'))
  sdk.setResponses({'/packet/2026-11-10/nova':{...p,written_by:'builtin',writer_note:''}})
- assert.ok(!render(mod.RateDesk,{childId:'nova',date:'2026-11-10',onDone:()=>{},onSource:()=>{}}).includes('chosen by your model'))
+ assert.ok(!render(mod.RateDesk,{childId:'nova',date:'2026-11-10',onDone:()=>{},onSource:()=>{}}).includes('written by your model'))
 })

@@ -25,6 +25,7 @@ from .storage import Store, _atomic_write
 logger = logging.getLogger(__name__)
 
 WRITERS = ("builtin", "model")
+GUIDANCE_MAX = 600
 SETTINGS_FILE = "daily.json"
 STATE_FILE = "daily_state.json"
 TIMER_FILE = "daily_timer.json"
@@ -33,7 +34,7 @@ FIRST_TICK_SECONDS = 45.0   # short-lived CLI processes exit before the first ch
 TICK_SECONDS = 60.0
 TIMER_ALIVE_SECONDS = 3 * 60
 RETRY_SECONDS = 10 * 60
-RUNNING_STALE_SECONDS = 10 * 60
+RUNNING_STALE_SECONDS = 20 * 60  # a model-written sheet for several children takes minutes
 MAX_ATTEMPTS = 6
 WRITE_TRIES = 8
 DOW = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -41,7 +42,10 @@ DOW = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 # -- settings ------------------------------------------------------------------------------------
 def settings(store: Store) -> dict[str, Any]:
-    """``{"enabled": bool, "writer": "builtin" | "model"}``; off and built-in until a parent says otherwise."""
+    """``{"enabled": bool, "writer": "builtin" | "model", "guidance": {child_id: text}}``.
+
+    Off and built-in until a parent says otherwise. ``guidance`` is what the parent asked the
+    model-written sheets to work on, per child."""
     try:
         raw = json.loads((store.root / SETTINGS_FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -49,7 +53,11 @@ def settings(store: Store) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raw = {}
     writer = raw.get("writer")
-    return {"enabled": raw.get("enabled") is True, "writer": writer if writer in WRITERS else "builtin"}
+    g = raw.get("guidance")
+    guidance = {str(k): " ".join(v.split())[:GUIDANCE_MAX] for k, v in g.items()
+                if isinstance(v, str) and v.strip()} if isinstance(g, dict) else {}
+    return {"enabled": raw.get("enabled") is True, "writer": writer if writer in WRITERS else "builtin",
+            "guidance": guidance}
 
 
 def save_settings(store: Store, body: dict[str, Any]) -> dict[str, Any]:
@@ -62,6 +70,16 @@ def save_settings(store: Store, body: dict[str, Any]) -> dict[str, Any]:
         if body["writer"] not in WRITERS:
             raise ValueError(f"writer must be one of {list(WRITERS)}")
         cur["writer"] = body["writer"]
+    if "guidance" in body:
+        g = body["guidance"]
+        if not isinstance(g, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in g.items()):
+            raise ValueError("guidance must give text for a child id")
+        for k, v in g.items():
+            v = " ".join(v.split())[:GUIDANCE_MAX]
+            if v:
+                cur["guidance"][k] = v
+            else:
+                cur["guidance"].pop(k, None)
     _atomic_write(store.root / SETTINGS_FILE, json.dumps(cur, indent=2) + "\n")
     return cur
 
@@ -121,10 +139,10 @@ def describe(rt: Any) -> str:
         else "the built-in writer"
     if not s["enabled"]:
         return (f"Daily sheets are off. Turn them on with /homework daily on. "
-                f"Problems would be chosen by {who}.")
+                f"Problems would be written by {who}.")
     times = sorted({c.schedule.time for c in fam.children} or {fam.schedule.time})
     return (f"Daily sheets are on: each child's sheet and the parent key are made at "
-            f"{' / '.join(times)} ({fam.timezone}) on their practice days. Problems are chosen by {who}.")
+            f"{' / '.join(times)} ({fam.timezone}) on their practice days. Problems are written by {who}.")
 
 
 # -- due check -----------------------------------------------------------------------------------

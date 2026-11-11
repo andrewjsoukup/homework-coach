@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date as Date
 from pathlib import Path
 from typing import Any
@@ -39,10 +39,11 @@ class ChildPlan:
     dims: dict[str, dict[str, int]]
     prev_formats: list[str] = field(default_factory=list)
     steer: dict[str, Any] = field(default_factory=dict)
-    written_by: str = "builtin"  # "model" when the parent's model chose the formats and numbers
+    written_by: str = "builtin"  # "model" when the parent's model wrote the problems
     writer_note: str = ""        # the model's one-line reason, shown to the parent only
     writer_model: str = ""
     writer_fallback: str = ""    # why a model-written sheet fell back to the built-in writer
+    writer_rejected: list[str] = field(default_factory=list)  # written problems that failed a check
 
 
 def _seed(*parts: str) -> int:
@@ -101,9 +102,10 @@ def _make(fmt: str, rng: random.Random, grade: str, dims: dict[str, int], skill:
 
 def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, history_days: int = 3,
                writer: Any = None) -> ChildPlan:
-    """Plan one child's sheet. ``writer`` (optional) is the model writer: it may choose each slot's
-    format and numbers; the generators still build and check every problem, and any writer failure
-    falls back to the built-in choices."""
+    """Plan one child's sheet. ``writer`` (optional) is the model writer: it writes the problem for
+    each slot (already checked by :mod:`writer`) or picks a ready-made format. Each written problem is
+    verified again here; a slot without a sound problem, and any writer failure, gets the built-in
+    generator's problem."""
     rng = random.Random(_seed(family.family_id, child.id, date))
     states = store.load_skills(child.id)
     anchor = store.load_anchor(child.id) or {}
@@ -149,14 +151,18 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
 
     guide: dict[int, dict[str, Any]] = {}
     written_by, writer_note, writer_model, writer_fallback = "builtin", "", "", ""
+    writer_rejected: list[str] = []
     if writer is not None:
         try:
-            out = writer(child=child, date=date, slots=slots, info={"steer": steer, "history": history})
+            out = writer(child=child, date=date, slots=slots, info={
+                "steer": steer, "history": history,
+                "siblings": [c.name for c in family.children if c.id != child.id]})
             guide = dict(out.get("slots") or {})
             if not guide:
                 raise ValueError("the model returned no choices")
             written_by, writer_note = "model", str(out.get("note") or "")
             writer_model = str(out.get("model") or "")
+            writer_rejected = [str(r)[:200] for r in (out.get("rejected") or [])]
         except Exception as e:  # no model, timeout, unusable reply: the built-in sheet is always there
             guide, writer_fallback = {}, f"{type(e).__name__}: {e}"[:200]
 
@@ -164,6 +170,14 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
 
     def build(s: dict[str, Any]) -> PacketItem:
         g = guide.get(s["slot"]) or {}
+        w = g.get("written")
+        if w is not None:  # a problem the model wrote: verified again, never trusted
+            it = replace(w, id="tmp", role=s["role"], skill=s["skill"])
+            errs = verify.check_item(it)
+            if not errs and it.prompt not in seen:
+                seen.add(it.prompt)
+                return it
+            writer_rejected.append(f"problem {s['slot']}: {errs[0] if errs else 'repeats another problem'}"[:200])
         # The model's choice first; if it cannot give a new, verified problem (some formats print the
         # same instruction every time, so they fit on a sheet once), the built-in choice, then any
         # other format for this skill.
@@ -198,12 +212,12 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
 
     unit = steer.get("unit") if steer.get("source") != "grade default" else None
     for it in core + [stretch]:
-        it.parent_tip = tip_for(it.format, unit)
+        it.parent_tip = it.parent_tip or tip_for(it.format, unit)
 
     return ChildPlan(child=child, items=core + [stretch], target_skill=target, review_skill=review,
                      dims={target: t_dims, review: r_dims}, prev_formats=history[-1] if history else [],
                      steer=steer, written_by=written_by, writer_note=writer_note, writer_model=writer_model,
-                     writer_fallback=writer_fallback)
+                     writer_fallback=writer_fallback, writer_rejected=writer_rejected)
 
 
 def steering_photo(store: Store, child_id: str, date: str, steer: dict[str, Any]) -> dict[str, Any] | None:
@@ -248,8 +262,10 @@ def progression_md(date: str, plans: list[ChildPlan]) -> str:
             *([f"- Class unit: {p.steer['unit']['title']}"] if p.steer.get("unit") else []),
             *([f"- Unit goals: {'; '.join(p.steer['goals'])}"] if p.steer.get("goals") else []),
             f"- Supporting review: {catalog.SKILLS.get(p.review_skill, p.review_skill)}",
-            *([f"- Problems chosen by: your model{' - ' + p.writer_note if p.writer_note else ''}"]
+            *([f"- Problems written by: your model{' - ' + p.writer_note if p.writer_note else ''}"]
               if p.written_by == "model" else []),
+            *([f"- Written problems that failed a check and were replaced: {'; '.join(p.writer_rejected)}"]
+              if p.writer_rejected else []),
             *([f"- Model writer unavailable, built-in sheet used: {p.writer_fallback}"] if p.writer_fallback else []),
             f"- Core items: {len(fmts)} (budget {p.child.item_budget}) + 1 optional stretch",
             "- Difficulty dims: " + "; ".join(
@@ -280,7 +296,7 @@ def text_fallback(date: str, plans: list[ChildPlan]) -> str:
 # -- build ---------------------------------------------------------------------------------------
 LOCK_NAME = ".build.lock"
 LOCK_WAIT_SECONDS = 120.0
-LOCK_STALE_SECONDS = 600.0
+LOCK_STALE_SECONDS = 1500.0  # longer than the slowest model-written build
 
 
 @contextmanager
@@ -452,7 +468,7 @@ def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child]
         "unit_goals": p.steer.get("goals", []),
         "steering_photo": steering_photo(store, p.child.id, date, p.steer),
         "written_by": p.written_by, "writer_note": p.writer_note, "writer_model": p.writer_model,
-        "writer_fallback": p.writer_fallback,
+        "writer_fallback": p.writer_fallback, "writer_rejected": p.writer_rejected,
         "items": [i.to_dict() for i in p.items]} for p in plans}
 
     if errors:

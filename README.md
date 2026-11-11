@@ -123,13 +123,22 @@ There is no job to create. The sheet appears on Today, ready to print.
 ### Who writes the sheet
 
 - **Built-in writer** (default): chooses the problems itself. No model call.
-- **Your model**: your Hermes model chooses each problem's type and numbers from the
-  child's latest homework reading, class unit and your ratings, about one call per child
-  per day. Homework Coach still builds every problem, works out every answer itself and
-  checks the page, so the model never supplies an answer. A choice the plugin cannot use is
-  replaced by the built-in choice, and if the model is unavailable the built-in writer
-  makes that day's sheet. Assign a specific model with the `homework_writer` auxiliary
-  task; otherwise your main model is used.
+- **Your model**: your Hermes model writes the problems itself, aimed at what the child's
+  latest homework reading, class unit, learning brief and your ratings show is needed:
+  the exact slip rebuilt in a fresh setting, two-step stories, find-the-mistake, choose the
+  matching equation, explain your thinking. You can add a line per child saying what the
+  sheets should work on and what the child likes.
+  Nothing the model writes is printed on trust:
+  1. every number answer is recomputed by Homework Coach from the problem's own arithmetic;
+  2. a second model call solves each problem seeing only what the child sees, and a
+     different answer or an unclear problem is thrown out;
+  3. the usual page checks run on the finished PDF.
+
+  A problem that fails is rewritten once, then replaced by a built-in problem. If the model
+  is unavailable the built-in writer makes that day's sheet. Expect two to four model calls
+  per child per day. Assign a specific model with the `homework_writer` auxiliary task;
+  otherwise your main model is used. Explain-your-thinking problems have no single answer;
+  the parent key says what to look for.
 
 ## Daily packets in your chat (optional)
 
@@ -234,11 +243,12 @@ channel exposes them.
   `homework_vision` auxiliary task. Tool results shown in ordinary chat also enter the
   conversation history.
 - **Model-written sheets (only if you choose "Your model"):** each time a sheet is made,
-  the child's grade, school program, class unit and goals, the latest homework reading
-  (problems, what the child wrote, the expected answers), your recent ratings and notes,
-  and recent sheet problems go to your configured model provider (or the model assigned to
-  `homework_writer`). The child's name and family name are not included, unless they appear
-  in a note or lesson title. With the built-in writer nothing is sent.
+  the child's grade, school program, class unit and goals, the learning brief, the latest
+  homework reading (problems, what the child wrote, the expected answers), your recent
+  ratings and notes, what you asked the sheets to work on, and recent sheet problems go to
+  your configured model provider (or the model assigned to `homework_writer`). The
+  children's names and file paths are removed from that text first; the family name is
+  never included. With the built-in writer nothing is sent.
 - **Files read:** image paths you hand the intake tool, uploads through the panel, teacher
   material you add, and its own config. Panel uploads are staged under
   `plugin-data/homework-coach/uploads/`. Homework staging is removed after intake;
