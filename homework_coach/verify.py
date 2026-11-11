@@ -18,7 +18,7 @@ from .models import PacketItem
 
 CHOICE_ANSWERS = {"A", "B", "C", "D", "True", "False", "<", ">", "="}
 FREE_VISUALS = {"objects", "ten_frame", "two_groups", "array", "groups", "share", "bar", "bar_equal",
-                "fraction_bar", "set", "number_line", "base_ten"}
+                "fraction_bar", "set", "number_line", "base_ten", "number_path"}
 
 
 def _expected(item: PacketItem) -> str:
@@ -77,6 +77,17 @@ def _expected(item: PacketItem) -> str:
         return f"{num}/{den}" if item.format != "shade_fraction" else f"{num} of {den} parts shaded"
     if k == "free":  # a problem the parent's model wrote (see writer.py)
         t = s.get("type")
+        steps = s.get("steps") or []
+        for st in steps:  # every fill-in line is recomputed too
+            if st["text"].count("___") != 1 or arith.fmt(arith.evaluate(st["check"])) != st["answer"]:
+                raise AssertionError("a fill-in line does not match its arithmetic")
+        filled = " ".join(f"({'abcd'[i]}) {st['answer']}" for i, st in enumerate(steps))
+        if t == "lines":
+            if not steps:
+                raise AssertionError("no fill-in lines")
+            return filled
+        if steps and f"Fill-ins: {filled}." not in item.worked_solution:
+            raise AssertionError("fill-in answers are missing from the parent key")
         if t == "number":
             return arith.fmt(arith.evaluate(s["check"]))  # the printed answer is recomputed, never trusted
         if t == "choice":
@@ -192,7 +203,8 @@ def check_item(item: PacketItem) -> list[str]:
     except (AssertionError, arith.ArithError, KeyError, ValueError) as e:
         errs.append(f"cannot verify: {e}")
     errs += _check_visual(item)
-    child_text = " ".join([item.prompt, item.hint, *item.display])
+    child_text = " ".join([item.prompt, item.hint, *item.display,
+                           *(str(st.get("text", "")) for st in item.spec.get("steps") or [])])
     try:
         child_text.encode("cp1252")
         item.answer.encode("cp1252")

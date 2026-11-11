@@ -11,7 +11,7 @@ packet: a printable PDF for each child plus a separate parent answer key. Rate e
 **I** (independent), **S** (supported) or **N** (not yet), and the next packet adjusts
 one step at a time.
 
-> Status: **0.2.3**. Elementary math (counting, place value, add/sub, multiplication,
+> Status: **0.2.4**. Elementary math (counting, place value, add/sub, multiplication,
 > division, fractions; 31 task formats). See [SPEC.md](SPEC.md).
 
 ![Homework Coach: a tutor and a student working through practice problems](docs/screenshots/banner.png)
@@ -126,10 +126,14 @@ There is no job to create. The sheet appears on Today, ready to print.
 - **Your model**: your Hermes model writes the problems itself, aimed at what the child's
   latest homework reading, class unit, learning brief and your ratings show is needed:
   the exact slip rebuilt in a fresh setting, two-step stories, find-the-mistake, choose the
-  matching equation, explain your thinking. You can add a line per child saying what the
-  sheets should work on and what the child likes.
+  matching equation, explain your thinking. Problems can carry fill-in lines that make the
+  child show the first step, write the equation, check with the inverse operation or fix a
+  made-up student's mistake, plus number paths and number lines with jumps drawn in. Each
+  sheet gets its own short title. You can add a line per child saying what the sheets
+  should work on and what the child likes.
   Nothing the model writes is printed on trust:
-  1. every number answer is recomputed by Homework Coach from the problem's own arithmetic;
+  1. every number answer, including every fill-in line, is recomputed by Homework Coach
+     from the problem's own arithmetic;
   2. a second model call solves each problem seeing only what the child sees, and a
      different answer or an unclear problem is thrown out;
   3. the usual page checks run on the finished PDF.

@@ -44,6 +44,7 @@ class ChildPlan:
     writer_model: str = ""
     writer_fallback: str = ""    # why a model-written sheet fell back to the built-in writer
     writer_rejected: list[str] = field(default_factory=list)  # written problems that failed a check
+    title: str = ""              # the model's name for the sheet, printed on the child page
 
 
 def _seed(*parts: str) -> int:
@@ -151,6 +152,7 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
 
     guide: dict[int, dict[str, Any]] = {}
     written_by, writer_note, writer_model, writer_fallback = "builtin", "", "", ""
+    writer_title = ""
     writer_rejected: list[str] = []
     if writer is not None:
         try:
@@ -162,6 +164,7 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
                 raise ValueError("the model returned no choices")
             written_by, writer_note = "model", str(out.get("note") or "")
             writer_model = str(out.get("model") or "")
+            writer_title = str(out.get("title") or "")[:60]
             writer_rejected = [str(r)[:200] for r in (out.get("rejected") or [])]
         except Exception as e:  # no model, timeout, unusable reply: the built-in sheet is always there
             guide, writer_fallback = {}, f"{type(e).__name__}: {e}"[:200]
@@ -217,7 +220,7 @@ def plan_child(store: Store, family: FamilyConfig, child: Child, date: str, hist
     return ChildPlan(child=child, items=core + [stretch], target_skill=target, review_skill=review,
                      dims={target: t_dims, review: r_dims}, prev_formats=history[-1] if history else [],
                      steer=steer, written_by=written_by, writer_note=writer_note, writer_model=writer_model,
-                     writer_fallback=writer_fallback, writer_rejected=writer_rejected)
+                     writer_fallback=writer_fallback, writer_rejected=writer_rejected, title=writer_title)
 
 
 def steering_photo(store: Store, child_id: str, date: str, steer: dict[str, Any]) -> dict[str, Any] | None:
@@ -285,6 +288,7 @@ def text_fallback(date: str, plans: list[ChildPlan]) -> str:
         for it in p.items:
             extra = ("  [" + " | ".join(it.display) + "]") if it.display else ""
             out.append(f"{it.id}. {it.prompt}{extra}")
+            out += [f"     {st['text']}" for st in it.spec.get("steps") or []]
     out.append("\n---- PARENT KEY (keep separate) ----")
     for p in plans:
         out.append(f"\n== {p.child.name} ==")
@@ -468,6 +472,7 @@ def _build_into(store: Store, family: FamilyConfig, date: str, kids: list[Child]
         "unit_goals": p.steer.get("goals", []),
         "steering_photo": steering_photo(store, p.child.id, date, p.steer),
         "written_by": p.written_by, "writer_note": p.writer_note, "writer_model": p.writer_model,
+        "title": p.title,
         "writer_fallback": p.writer_fallback, "writer_rejected": p.writer_rejected,
         "items": [i.to_dict() for i in p.items]} for p in plans}
 

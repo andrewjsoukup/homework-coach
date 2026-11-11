@@ -134,7 +134,7 @@ def visual_height(item: PacketItem, r: float = 6.0) -> float:
         return max((v["a"] + 4) // 5, (v["b"] + 4) // 5) * (2 * r + 6) + 20
     if t == "base_ten":
         return 70
-    if t == "number_line":
+    if t in ("number_line", "number_path"):
         return 40
     if t in ("bar", "bar_equal", "fraction_bar"):
         return 46
@@ -216,7 +216,25 @@ def draw_visual(p: Page, item: PacketItem, x: float, y: float) -> dict[str, Any]
             c.line(tx, ly - 4, tx, ly + 4)
             p.text(tx - stringWidth(str(n), FONT, 7) / 2, ly - 13, str(n), FONT, 7)
             ticks += 1
-        return {"ticks": ticks, "lo": lo, "hi": hi}
+        hops = 0
+        for i in range(v.get("hops", 0)):  # jumps of one tick each, from the first number
+            x1, x2 = x + i * jump / span * width, x + (i + 1) * jump / span * width
+            c.arc(x1, ly - 10, x2, ly + 10, 0, 180)
+            hops += 1
+        return {"ticks": ticks, "lo": lo, "hi": hi, "hops": hops}
+    if t == "number_path":
+        cells = v["cells"]
+        cw = min(46.0, (W - 2 * MARGIN - 40) / len(cells))
+        n = 0
+        for i, q in enumerate(cells):
+            cx = x + i * cw
+            p.box_ok(cx, y - 30, cw, 28)
+            c.rect(cx, y - 30, cw, 28)
+            if q is not None:
+                s = str(q)
+                p.text(cx + cw / 2 - stringWidth(s, BOLD, 12) / 2, y - 21, s, BOLD, 12)
+            n += 1
+        return {"cells": n}
     if t in ("bar", "bar_equal", "fraction_bar"):
         width = min(360, W - 2 * MARGIN - 40)
         by = y - 30
@@ -312,7 +330,11 @@ def visual_description(item: PacketItem) -> str:
     if t == "set":
         return f"picture: {v['total']} circles, {v['shaded']} shaded"
     if t == "number_line":
-        return f"picture: number line {v['lo']}-{v['hi']}"
+        hops = v.get("hops", 0)
+        return f"picture: number line {v['lo']}-{v['hi']}" + (
+            f" marked every {v['jump']}, with {hops} jumps drawn from {v['lo']}" if hops else "")
+    if t == "number_path":
+        return "picture: number boxes " + ", ".join("(empty)" if q is None else str(q) for q in v["cells"])
     return ""
 
 
@@ -344,7 +366,9 @@ def check_drawn(items: list[PacketItem], drawn: dict[str, dict]) -> list[str]:
         elif t == "set":
             exp = {"total": v["total"], "shaded": v["shaded"]}
         elif t == "number_line":
-            exp = {"lo": v["lo"], "hi": v["hi"]}
+            exp = {"lo": v["lo"], "hi": v["hi"], **({"hops": v["hops"]} if v.get("hops") else {})}
+        elif t == "number_path":
+            exp = {"cells": len(v["cells"])}
         for k, val in exp.items():
             if d.get(k) != val:
                 errs.append(f"item {it.id} ({it.format}): drew {k}={d.get(k)!r}, expected {val!r}")
@@ -364,6 +388,9 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
     if child.reading_support:
         p.text(MARGIN, p.y, "Grown-up: please read each direction aloud.", FONT, 10, GREY)
         p.y -= 22
+    if getattr(plan, "title", ""):
+        p.text(MARGIN, p.y - 2, plan.title, BOLD, size - 1)
+        p.y -= 24
     width = W - 2 * MARGIN - 28
     for it in plan.items:
         label = f"{it.id}." if not it.optional else f"{it.id}. (optional challenge)"
@@ -373,7 +400,10 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
         listed = it.spec.get("kind") in ("select", "free")  # choices one per line
         disp_h = len(it.display) * (size + 6) + (size + 2 if it.spec.get("kind") == "free" and it.display else 0) \
             if listed else (size + 8) if it.display else 0
-        work_h = it.work_lines * (size + 12) + 2 * size + 16
+        work_h = it.work_lines * (size + 12) + 2 * size + 16   # working lines, answer box, gap
+        steps = [wrap(st["text"].replace("___", "_______"), FONT, size, width - 10)
+                 for st in it.spec.get("steps") or []]  # fill-in lines of a model-written problem
+        work_h += sum(len(s) for s in steps) * (size + 11)
         block = (len(lines) * (size + 4) + len(hint_lines) * (size + 1) + (vh + 10 if vh else 0)
                  + disp_h + work_h + 18)
         p.need(block)
@@ -393,6 +423,11 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
             p.y -= 4
             drawn[it.id] = draw_visual(p, it, tx, p.y)
             p.y -= vh + 6
+        for s in steps:
+            for ln in s:
+                p.y -= 7
+                p.text(tx + 10, p.y - size, ln, FONT, size)
+                p.y -= size + 4
         if it.display:
             if listed:
                 if it.spec.get("kind") == "free":
@@ -409,7 +444,7 @@ def child_pdf(path: Path, plan: "ChildPlan", date: str) -> dict[str, dict]:
                     cx += stringWidth(d, BOLD, size) + 50
                 p.y -= size + 8
         if not it.display and "___" not in it.prompt and it.format != "shade_fraction" \
-                and it.spec.get("type") != "open":
+                and it.spec.get("type") not in ("open", "lines"):
             p.y -= 6
             lab = "Answer:"
             p.text(tx, p.y - size, lab, BOLD, size)

@@ -698,7 +698,8 @@ def packet_detail(rt: Runtime, day: str, child_id: str) -> dict[str, Any]:
     items = []
     for raw in c.get("items", []):
         it = PacketItem.from_dict(raw)
-        items.append({"id": it.id, "prompt": it.prompt, "display": it.display, "picture": visual_description(it),
+        items.append({"id": it.id, "prompt": it.prompt,
+                      "display": [*it.display, *(st["text"] for st in it.spec.get("steps") or [])], "picture": visual_description(it),
                       "visual": it.visual_inventory,
                       "hint": it.hint, "answer": it.answer, "worked": it.worked_solution, "format": it.format,
                       "format_label": catalog.FORMATS[it.format].label if it.format in catalog.FORMATS

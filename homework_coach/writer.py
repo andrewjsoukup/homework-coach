@@ -37,6 +37,8 @@ REWRITE_BUDGET_SECONDS = 200        # no rewrite round once this much time has g
 PROMPT_MIN, PROMPT_MAX, WORD_MAX = 8, 420, 34
 CHOICE_MAX, MAX_CHOICES = 48, 4
 MAX_OPEN = 2
+MAX_LINES, MAX_LINES_YOUNG, LINE_MAX, TITLE_MAX = 4, 2, 90, 48
+ABC = "abcd"
 BRIEF_CHARS = 2500
 LETTERS = "ABCD"
 WHO_RE = re.compile(r"^[A-Z][a-z]{1,11}$")
@@ -94,7 +96,8 @@ PICTURES: dict[str, str] = {
     "bar_equal": "[total written above the bar, equal parts] (parts 2 to 10): a bar cut into equal empty parts",
     "fraction_bar": "[equal parts, shaded parts] (parts 2 to 12): a bar with some parts shaded (0 shaded = blank bar)",
     "set": "[circles in all, shaded circles] (1 to 30 circles)",
-    "number_line": "[first number, last number, tick step] (2 to 20 steps; first number a multiple of the step): a labelled number line with nothing marked on it",
+    "number_line": "[first number, last number, tick step, hops (optional)] (2 to 20 steps; first number a multiple of the step): a labelled number line; with hops, that many jumps of one tick each are drawn starting at the first number",
+    "number_path": "[the numbers in order, writing 0 for each empty box the child fills in] (3 to 10 boxes, 1 to 4 empty): a row of number boxes for patterns and counting paths",
     "base_ten": "[hundreds blocks 0 to 5, tens rods 0 to 9, ones cubes 0 to 9]",
 }
 
@@ -125,6 +128,15 @@ INSTRUCTIONS = (
     "sentence a grown-up can read aloud and lean on pictures. Never need colours, scissors or objects. "
     "Plain keyboard characters plus the signs for times and divide only; write ___ for a blank inside "
     "an equation. Never use the child's own name. Never put an answer in a `prompt` or `hint`.\n\n"
+    "DEPTH: a good problem makes the child do something with the idea, not only write one number. "
+    "When `max_lines` is 3 or more, most problems should carry two or three `lines` that make the "
+    "child show the first step, write the matching equation, check with the inverse operation, "
+    "estimate before finding the exact answer, label each link of a pattern, or fix a made-up "
+    "student's mistake and prove the fix. For the youngest children use a line only when it is "
+    "natural, such as \"I counted ___ triangles.\" A line must not state the main answer or another "
+    "line's answer in words. Lines print under the picture and above the choices or the answer box, "
+    "in the order given, so write them as the steps towards the answer: if your hint names two "
+    "steps, give a line for each. A problem with lines gets no other working space.\n\n"
     "EACH ITEM: `slot`; `kind` = \"written\"; `prompt` (the problem as the child reads it); "
     "`answer_type`:\n"
     "- \"number\": `answer` is only a whole number or a fraction like 3/4 (no units, no words), and "
@@ -134,6 +146,12 @@ INSTRUCTIONS = (
     "(A, B, C or D in the order given). Do not letter the options yourself.\n"
     "- \"open\": explain, draw or show thinking; `answer` is one short sentence saying what a good "
     "response includes. At most `max_open` open problems on the sheet.\n"
+    "- \"lines\": the problem is a direction and every answer goes in its `lines` (at least one); "
+    "leave `answer` and `check` empty.\n"
+    "`lines`: zero to `max_lines` short fill-in lines printed under the problem. Each has `text` with "
+    "exactly one blank written ___, its own `answer` (a whole number or a fraction) and `check` "
+    "(plain arithmetic that works out to it), e.g. text \"30 / 5 = ___ bundles\" and then text "
+    "\"Check: ___ x 5 = 30\". Use [] for none.\n"
     "`picture`: optional. `type` is one of `pictures` with `numbers` in the order shown; it is drawn "
     "exactly, so the prompt must agree with it. Use type \"\" and [] for no picture. "
     "`hint`: a short nudge that does not give the answer away. `solution`: the worked solution for "
@@ -150,7 +168,8 @@ INSTRUCTIONS = (
     "is thrown away. If `rewrite` is present, those problems were thrown away for the reason given: "
     "write a different, sound problem for each of those slots, and do not reuse the numbers or the "
     "setting of the problems in `already_on_sheet`, which are being kept.\n\n"
-    "`note`: one plain sentence telling the parent what this sheet concentrates on and why."
+    "`note`: one plain sentence telling the parent what this sheet concentrates on and why. "
+    "`title`: a friendly name for the sheet in two to six words, such as \"Find the repeating rule\"."
 )
 
 CHECK_INSTRUCTIONS = (
@@ -159,7 +178,9 @@ CHECK_INSTRUCTIONS = (
     "there is one, the `choices` if there are any, and a printed `hint` if there is one. Solve each one from that alone.\n"
     "Return one entry per problem with `slot`, and `answer`: for type \"number\" only the number "
     "(a whole number or a fraction like 3/4); for type \"choice\" only the letter of the correct "
-    "option; for type \"open\" an empty string.\n"
+    "option; for type \"open\" or \"lines\" an empty string.\n"
+    "`lines` are fill-in lines printed under the problem, each with one blank ___. Return `lines`: "
+    "the number that goes in each blank, in order, as strings ([] when there are none).\n"
     "Set `ok` to false, with a few words in `issue`, when the problem is ambiguous, has no correct "
     "answer or more than one, depends on something that is not shown, disagrees with its picture, "
     "gives its own answer away, or is clearly wrong for the grade given. Otherwise `ok` is true and "
@@ -170,16 +191,20 @@ SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "note": {"type": "string"},
+        "title": {"type": "string"},
         "items": {"type": "array", "items": {
             "type": "object",
             "properties": {
                 "slot": {"type": "integer"},
                 "kind": {"type": "string", "enum": ["written", "builtin"]},
                 "prompt": {"type": "string"},
-                "answer_type": {"type": "string", "enum": ["number", "choice", "open", ""]},
+                "answer_type": {"type": "string", "enum": ["number", "choice", "open", "lines", ""]},
                 "answer": {"type": "string"},
                 "check": {"type": "string"},
                 "choices": {"type": "array", "items": {"type": "string"}},
+                "lines": {"type": "array", "items": {"type": "object", "properties": {
+                    "text": {"type": "string"}, "answer": {"type": "string"}, "check": {"type": "string"}},
+                    "required": ["text", "answer", "check"]}},
                 "picture": {"type": "object", "properties": {
                     "type": {"type": "string"},
                     "numbers": {"type": "array", "items": {"type": "integer"}}},
@@ -193,20 +218,21 @@ SCHEMA: dict[str, Any] = {
                 "things": {"type": "string"},
                 "why": {"type": "string"},
             },
-            "required": ["slot", "kind", "prompt", "answer_type", "answer", "check", "choices", "picture", "hint",
+            "required": ["slot", "kind", "prompt", "answer_type", "answer", "check", "choices", "lines", "picture", "hint",
                          "solution", "tip", "format", "numbers", "who", "things", "why"],
         }},
     },
-    "required": ["note", "items"],
+    "required": ["note", "title", "items"],
 }
 
 CHECK_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {"answers": {"type": "array", "items": {
         "type": "object",
-        "properties": {"slot": {"type": "integer"}, "answer": {"type": "string"}, "ok": {"type": "boolean"},
+        "properties": {"slot": {"type": "integer"}, "answer": {"type": "string"},
+                       "lines": {"type": "array", "items": {"type": "string"}}, "ok": {"type": "boolean"},
                        "issue": {"type": "string"}},
-        "required": ["slot", "answer", "ok", "issue"]}}},
+        "required": ["slot", "answer", "lines", "ok", "issue"]}}},
     "required": ["answers"],
 }
 
@@ -306,11 +332,20 @@ def picture_inventory(ptype: str, nums: list[int]) -> dict[str, Any]:
         total = rng(nums[0], 1, 30, "circles")
         return {"type": "set", "total": total, "shaded": rng(nums[1], 0, total, "shaded circles")}
     if ptype == "number_line":
-        need(3)
+        need(4, 3)
         lo, hi, step = rng(nums[0], 0, 9990, "first number"), nums[1], rng(nums[2], 1, 1000, "step")
         if not lo < hi <= 9999 or (hi - lo) % step or lo % step or not 2 <= (hi - lo) // step <= 20:
             raise WriterError("picture number_line: needs 2 to 20 equal steps, starting on a multiple of the step")
-        return {"type": "number_line", "lo": lo, "hi": hi, "jump": step}
+        out = {"type": "number_line", "lo": lo, "hi": hi, "jump": step}
+        if len(nums) == 4 and nums[3]:
+            out["hops"] = rng(nums[3], 1, (hi - lo) // step, "hops")
+        return out
+    if ptype == "number_path":
+        if not 3 <= len(nums) <= 10 or any(not 0 <= n <= 9999 for n in nums):
+            raise WriterError("picture number_path needs 3 to 10 numbers")
+        if not 1 <= nums.count(0) <= 4 or len(nums) - nums.count(0) < 2:
+            raise WriterError("picture number_path: one to four empty boxes and at least two numbers shown")
+        return {"type": "number_path", "cells": [n or None for n in nums]}
     if ptype == "base_ten":
         need(3)
         h, t, o = rng(nums[0], 0, 5, "hundreds"), rng(nums[1], 0, 9, "tens"), rng(nums[2], 0, 9, "ones")
@@ -336,6 +371,25 @@ def written_item(raw: dict[str, Any], slot: dict[str, Any], grade: str) -> Packe
     spec: dict[str, Any] = {"kind": "free", "type": kind}
     young = catalog.grade_num(grade) <= 1
     work_lines = 1 if young else 2
+    steps: list[dict[str, str]] = []
+    for ln in (raw.get("lines") or [])[:MAX_LINES_YOUNG if young else MAX_LINES]:
+        if not isinstance(ln, dict):
+            continue
+        text = re.sub(r"_{2,}", "___", _text(ln.get("text"), LINE_MAX + 1))
+        if not text:
+            continue
+        if len(text) > LINE_MAX or text.count("___") != 1:
+            raise WriterError("a fill-in line must be short and have exactly one blank")
+        line_check = _text(ln.get("check"), 80)
+        try:
+            val = arith.evaluate(line_check)
+        except arith.ArithError:
+            raise WriterError("a fill-in line's check is not plain arithmetic") from None
+        said = arith.parse_number(_text(ln.get("answer"), 40))
+        if said is None or said != val or val < 0 or val.denominator > 100:
+            raise WriterError(f"a fill-in line's answer does not match its own arithmetic ({text[:50]})")
+        steps.append({"text": text, "check": line_check, "answer": arith.fmt(val)})
+    filled = " ".join(f"({ABC[i]}) {s['answer']}" for i, s in enumerate(steps))
     if kind == "number":
         check = _text(raw.get("check"), 80)
         try:
@@ -377,15 +431,26 @@ def written_item(raw: dict[str, Any], slot: dict[str, Any], grade: str) -> Packe
         solution = f"Look for: {look}" + (f" {solution}" if solution else "")
         spec["box"] = True
         work_lines = 3
+    elif kind == "lines":
+        if not steps:
+            raise WriterError("it has no fill-in lines")
+        answer = filled
+        solution = solution or " ".join(f"({ABC[i]}) {s['check']} = {s['answer']}." for i, s in enumerate(steps))
+        work_lines = 0
     else:
         raise WriterError("it has no answer type")
-    if slot["role"] == "stretch":
+    if steps:
+        spec["steps"] = steps
+        if kind != "lines":
+            solution = f"{solution} Fill-ins: {filled}."
+            work_lines = work_lines if kind == "open" else 0   # the lines are the working space
+    if slot["role"] == "stretch" and not steps:   # with fill-in lines, the lines are the thinking space
         spec["box"] = True
         work_lines = max(work_lines, 3)
     scaffold = max(1, min(5, int(slot["dims"].get("scaffold", 1))))
     hint = _text(raw.get("hint"), 140) if scaffold <= 2 else ""
     tip = _text(raw.get("tip"), 220)
-    for piece in (prompt, hint, solution, tip, *display):
+    for piece in (prompt, hint, solution, tip, *display, *(s["text"] for s in steps)):
         if not _printable(piece):
             raise WriterError("it uses a character the page cannot print")
     return PacketItem(id="", skill=slot["skill"], format=WRITTEN, prompt=prompt, answer=answer,
@@ -480,6 +545,7 @@ def request(child: Any, date: str, slots: list[dict[str, Any]], info: dict[str, 
         for f in dict.fromkeys(f for s in slots if s["skill"] == sk for f in s["allowed"])] for sk in skills}
     young = catalog.grade_num(child.grade) <= 0
     return {"child": context(store, child, date, info), "max_open": 1 if young else MAX_OPEN,
+            "max_lines": MAX_LINES_YOUNG if catalog.grade_num(child.grade) <= 1 else MAX_LINES,
             "pictures": PICTURES, "formats": formats,
             "slots": [{"slot": s["slot"], "role": s["role"], "skill": catalog.SKILLS.get(s["skill"], s["skill"]),
                        "max_number": num_max(s["skill"], child.grade, max(1, min(5, int(s["dims"].get("number_range", 1))))),
@@ -515,6 +581,7 @@ def _seen_by_child(item: PacketItem) -> dict[str, Any]:
 
     return {"type": item.spec.get("type"), "prompt": item.prompt,
             "picture": visual_description(item).replace("picture: ", ""), "choices": list(item.display),
+            "lines": [s["text"] for s in item.spec.get("steps") or []],
             "hint": item.hint}
 
 
@@ -534,6 +601,15 @@ def disagreement(item: PacketItem, sol: dict[str, Any] | None) -> str:
     elif kind == "choice":
         if got.strip(".() ").upper()[:1] != item.answer:
             return f"second check chose {got[:8] or 'nothing'}, not {item.answer}"
+    steps = item.spec.get("steps") or []
+    if steps:
+        got_lines = sol.get("lines") if isinstance(sol.get("lines"), list) else []
+        if len(got_lines) != len(steps):
+            return "second check did not fill in every line"
+        for st, g in zip(steps, got_lines):
+            found = NUM_RE.findall(str(g).replace(",", ""))
+            if not found or arith.parse_number(found[-1]) != arith.parse_number(st["answer"]):
+                return f"second check filled in {str(g)[:12] or 'nothing'}, not {st['answer']} ({st['text'][:40]})"
     return ""
 
 
@@ -553,7 +629,7 @@ def make(llm: Any, store: Any) -> Callable[..., dict[str, Any]]:
         guide: dict[int, dict[str, Any]] = {}
         failed: dict[int, tuple[str, str]] = {}   # slot -> (problem text, reason)
         counts: dict[str, int] = {}
-        note = model = ""
+        note = model = title = ""
         opens = 0
         pending = list(slots)
         payload = base
@@ -561,6 +637,7 @@ def make(llm: Any, store: Any) -> Callable[..., dict[str, Any]]:
             parsed, used = _call(llm, INSTRUCTIONS, SCHEMA, "homework_coach_sheet", payload, WRITE_TIMEOUT)
             model = model or used
             note = note or _text(parsed.get("note"), 240)
+            title = title or _text(parsed.get("title"), TITLE_MAX)
             by = {s["slot"]: s for s in pending}
             fresh: dict[int, PacketItem] = {}
             whys: dict[int, str] = {}
@@ -576,7 +653,8 @@ def make(llm: Any, store: Any) -> Callable[..., dict[str, Any]]:
                     continue
                 try:
                     it = written_item(raw, s, child.grade)
-                    if re.search(rf"\b{re.escape(child.name)}\b", " ".join([it.prompt, it.hint, *it.display]), re.I):
+                    if re.search(rf"\b{re.escape(child.name)}\b", " ".join([it.prompt, it.hint, *it.display,
+                                                                         *(s["text"] for s in it.spec.get("steps") or [])]), re.I):
                         raise WriterError("it uses the child's own name")
                     errs = verify.check_item(replace(it, id=str(s["slot"])))
                     if errs:
@@ -613,6 +691,7 @@ def make(llm: Any, store: Any) -> Callable[..., dict[str, Any]]:
             reason = next(iter(failed.values()))[1] if failed else "it returned nothing usable"
             raise WriterError(f"the model wrote no usable problems ({reason})")
         return {"slots": guide, "note": note if _printable(note) else "", "model": model[:80],
+                "title": title if _printable(title) and "answer" not in title.lower() else "",
                 "rejected": [f"problem {n}: {why}"[:200] for n, (_, why) in sorted(failed.items())
                              if n not in guide]}
     return write

@@ -161,6 +161,9 @@ def test_choice_and_explain_problems():
     ("fraction_bar", [4, 3], {"type": "fraction_bar", "parts": 4, "shaded": 3}),
     ("set", [8, 2], {"type": "set", "total": 8, "shaded": 2}),
     ("number_line", [0, 20, 2], {"type": "number_line", "lo": 0, "hi": 20, "jump": 2}),
+    ("number_line", [0, 30, 5, 6], {"type": "number_line", "lo": 0, "hi": 30, "jump": 5, "hops": 6}),
+    ("number_path", [1, 2, 3, 0, 5, 6, 7, 0, 9, 10],
+     {"type": "number_path", "cells": [1, 2, 3, None, 5, 6, 7, None, 9, 10]}),
     ("base_ten", [1, 2, 3], {"type": "base_ten", "hundreds": 1, "tens": 2, "ones": 3}),
 ])
 def test_every_picture_the_model_may_ask_for_is_drawn_and_checked(ptype, nums, want, tmp_path, fam):
@@ -182,7 +185,8 @@ def test_every_listed_picture_is_tested_and_bad_pictures_are_refused():
     for ptype, nums in (("objects", [0]), ("objects", [31]), ("array", [3]), ("bar", [10, 0, 0]), ("bar", [10, 4, 5]),
                         ("bar", [5, 9, 0]), ("fraction_bar", [4, 5]), ("set", [3, 4]), ("number_line", [0, 21, 2]),
                         ("number_line", [0, 500, 2]), ("number_line", [3, 13, 2]), ("base_ten", [0, 0, 0]),
-                        ("share", [12, 9])):
+                        ("share", [12, 9]), ("number_line", [0, 30, 5, 7]), ("number_path", [1, 2, 3]),
+                        ("number_path", [0, 0, 0, 0, 0, 6]), ("number_path", [1, 0])):
         with pytest.raises(writer.WriterError):
             writer.picture_inventory(ptype, nums)
 
@@ -236,7 +240,7 @@ def test_the_model_writes_the_sheet_and_every_answer_is_checked_twice(store, fam
     assert verify.check_items(p.items[:-1], budget=child.item_budget) == []
     assert all(c["task"] == writer.AUX_TASK and c["json_schema"]["additionalProperties"] is False for c in llm.calls)
     seen = json.loads(llm.calls[1]["input"][0]["text"])  # the second pass sees only what the child sees
-    assert set(seen["problems"][0]) == {"slot", "type", "prompt", "picture", "choices", "hint"}
+    assert set(seen["problems"][0]) == {"slot", "type", "prompt", "picture", "choices", "lines", "hint"}
     assert "answer" not in json.dumps(seen) and "check" not in json.dumps(seen["problems"])
 
 
@@ -456,3 +460,83 @@ def test_the_tool_uses_the_model_only_when_the_parent_chose_it(tmp_path, family_
     assert llm.names() == ["homework_coach_sheet", "homework_coach_check"]
     rt, res = run(None, "2026-11-04")  # no model connection: the built-in writer, not an error
     assert res["ok"] and res["written_by"]["nova"] == "builtin"
+
+
+# -- fill-in lines, sheet title --------------------------------------------------------------------
+LINES = [{"text": "30 / 5 = ___ bundles", "answer": "6", "check": "30 / 5"},
+         {"text": "Check: ___ x 5 = 30", "answer": "6", "check": "30 / 5"}]
+
+
+def lines_raw(**kw):
+    return raw(**{"prompt": "Each hop is one bundle of 5 beads. How many bundles reach 30?", "answer_type": "lines",
+                  "answer": "", "check": "", "lines": LINES, "hint": "", "solution": "",
+                  "picture": {"type": "number_line", "numbers": [0, 30, 5, 6]}, **kw})
+
+
+def test_fill_in_lines_are_recomputed_and_only_the_key_has_their_answers(tmp_path, fam):
+    from homework_coach import render
+
+    it = writer.written_item(lines_raw(), SLOT, "3")
+    it.id = "1"
+    assert it.answer == "(a) 6 (b) 6" and it.spec["type"] == "lines" and len(it.spec["steps"]) == 2
+    assert verify.check_item(it) == []
+    plan = packet.ChildPlan(child=fam.child("nova"), items=[it], target_skill="division",
+                            review_skill="multiplication", dims={}, title="Hops and bundles")
+    drawn = render.child_pdf(tmp_path / "p.pdf", plan, MON)
+    assert render.check_drawn([it], drawn) == [] and drawn["1"]["hops"] == 6
+    page = verify.pdf_text(tmp_path / "p.pdf")[0]
+    assert "Hops and bundles" in page and "bundles" in page and "Check:" in page and "Answer" not in page
+    assert verify.check_child_pdf(tmp_path / "p.pdf", [it]) == []
+    it.spec["steps"][0]["answer"] = "7"   # a tampered line no longer verifies
+    assert verify.check_item(it)
+
+
+def test_a_number_problem_can_carry_lines_and_the_key_lists_them():
+    it = writer.written_item(raw(lines=[{"text": "First step: 4 x 6 = ___", "answer": "24", "check": "4 * 6"}]),
+                             SLOT, "3")
+    it.id = "1"
+    assert it.answer == "27" and "Fill-ins: (a) 24." in it.worked_solution and verify.check_item(it) == []
+
+
+@pytest.mark.parametrize("bad, why", [
+    ([{"text": "No blank here", "answer": "6", "check": "30 / 5"}], "exactly one blank"),
+    ([{"text": "___ and ___", "answer": "6", "check": "30 / 5"}], "exactly one blank"),
+    ([{"text": "30 / 5 = ___", "answer": "7", "check": "30 / 5"}], "does not match"),
+    ([{"text": "30 / 5 = ___", "answer": "6", "check": "import os"}], "not plain arithmetic"),
+])
+def test_bad_fill_in_lines_are_refused(bad, why):
+    with pytest.raises(writer.WriterError, match=why):
+        writer.written_item(lines_raw(lines=bad), SLOT, "3")
+    with pytest.raises(writer.WriterError, match="no fill-in lines"):
+        writer.written_item(lines_raw(lines=[]), SLOT, "3")
+
+
+def test_kindergarten_gets_at_most_two_lines():
+    many = [{"text": f"{n} + 1 = ___", "answer": str(n + 1), "check": f"{n} + 1"} for n in range(1, 5)]
+    assert len(writer.written_item(lines_raw(lines=many), SLOT, "K").spec["steps"]) == writer.MAX_LINES_YOUNG
+    assert len(writer.written_item(lines_raw(lines=many), SLOT, "3").spec["steps"]) == writer.MAX_LINES
+
+
+def test_the_second_pass_must_agree_with_every_line():
+    it = writer.written_item(lines_raw(), SLOT, "3")
+    ok = {"slot": 1, "answer": "", "lines": ["6", "6 bundles"], "ok": True, "issue": ""}
+    assert writer.disagreement(it, ok) == ""
+    assert "filled in 5" in writer.disagreement(it, {**ok, "lines": ["6", "5"]})
+    assert "every line" in writer.disagreement(it, {**ok, "lines": ["6"]})
+    assert writer._seen_by_child(it)["lines"] == [s["text"] for s in LINES]
+    assert "jumps drawn" in writer._seen_by_child(it)["picture"]
+
+
+def test_the_sheet_title_is_printed_and_saved(store, fam):
+    def write(payload):
+        return {**write_sums(payload), "title": "Find the repeating rule"}
+
+    res = packet.build_packet(store, fam, MON, only=["nova"], writer=writer.make(FakeLlm(write), store))
+    assert res["ok"] and res["verification"]["ok"]
+    folder = Path(res["folder"])
+    assert json.loads((folder / "packet.json").read_text(encoding="utf-8"))["children"]["nova"]["title"] \
+        == "Find the repeating rule"
+    assert "Find the repeating rule" in verify.pdf_text(folder / "nova_practice.pdf")[0]
+    built = packet.build_packet(store, fam, TUE, only=["nova"])   # built-in sheets have no title line
+    assert json.loads((Path(built["folder"]) / "packet.json").read_text(encoding="utf-8"))["children"]["nova"]["title"] == ""
+
